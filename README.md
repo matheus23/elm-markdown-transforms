@@ -16,7 +16,7 @@ However, in this package I'm experimenting with a different philosophy for follo
 * The alternative to having a dependency is duplicating code that exists somewhere else. This can result in duplicated code in your compiled .js file.
 * More philosophical: I believe packages and applications should all run on as up-to-date dependencies as possible. Elm's static typing makes updating to new package versions a breeze, even if their API changed. Even if the maintainer of a package hasn't updated the package's dependencies, it is in many cases possible for anyone with Elm experience to upgrade the dependency and submit a pull request.
 
-If you are looking for a tool that helps you update to the latest package versions, I recommend (the badly named) [zwilias/elm-json](https://github.com/zwilias/elm-json#readme).
+If you are looking for a tool that helps you update to the latest package versions, I recommend (the confusingly named) [zwilias/elm-json](https://github.com/zwilias/elm-json#readme).
 
 I am aware that this decision might be controversial for good reasons. After all, we track dependencies precisely for being able to depend on older versions than the most recent one! And there might be good reasons for depending on older versions, if you just can't upgrade to a newer version for some reason that is out of your control.
 

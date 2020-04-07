@@ -2,7 +2,7 @@
     "type": "package",
     "name": "matheus23/elm-markdown-transforms",
     "summary": "For creating advanced elm-markdown renderers (e.g. with model access).",
-    "license": "BSD-3-Clause",
+    "license": "MIT",
     "version": "0.0.1",
     "exposed-modules": [
         "Markdown.Scaffolded"
