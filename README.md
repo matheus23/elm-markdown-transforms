@@ -1,6 +1,23 @@
 # Elm-markdown-transforms
 
-<TODO>
+See the documentation at [package.elm-lang.org](https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest/).
+
+This package is for working with [elm-markdown](https://package.elm-lang.org/packages/dillonkearns/elm-markdown/latest/). It aims to make it easier for the users of elm-markdown to write more sophisticated [Renderer](https://package.elm-lang.org/packages/dillonkearns/elm-markdown/latest/Markdown-Renderer)s.
+
+Some examples of tasks with markdown that this library may make easier for you:
+
+* Rendering markdown to functions: If you want your markdown to be interactive (have `Model` access), you need to render to a function. Take a look at [`parameterized`](https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest/Markdown-Scaffolded#parameterized).
+* Validating markdown in the renderer: See [`validated`](https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest/Markdown-Scaffolded#validated).
+* Making elm-pages [`StaticHttp.Request`](https://package.elm-lang.org/packages/dillonkearns/elm-pages/latest/Pages-StaticHttp#Request)s in your renderer: See [`withStaticHttpRequests`](https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest/Markdown-Scaffolded#withStaticHttpRequests).
+* Accumulating information about your markdown files: See [`reduce`](https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest/Markdown-Scaffolded#reduce).
+
+I highly recommend taking a look at the module documentation for [`Markdown.Scaffolded`](https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest/Markdown-Scaffolded).
+
+## Discussion/Contact
+
+Feel free to open an issue, if you want to discuss something.
+
+Other than that, you can DM me @matheus23 in the [elm slack](https://elm-lang.org/community).
 
 ## Indirect Dependency Philosophy
 
@@ -20,4 +37,4 @@ If you are looking for a tool that helps you update to the latest package versio
 
 I am aware that this decision might be controversial for good reasons. After all, we track dependencies precisely for being able to depend on older versions than the most recent one! And there might be good reasons for depending on older versions, if you just can't upgrade to a newer version for some reason that is out of your control.
 
-If there are any downsides I missed, of if you just don't agree with my priorization or anything about this matter, please reach out to me on the Elm slack (I'm matheus23).
+If there are any downsides I missed, of if you just don't agree with my priorization or anything about this matter, please reach out to me.
