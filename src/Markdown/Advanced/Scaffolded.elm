@@ -5,6 +5,12 @@ module Markdown.Advanced.Scaffolded exposing (..)
   - I need to make my own Html renderer now?
   - Do I need to bundle block and inline algebras together now?
 
+For now I'll keep this module non-exposed. Things have to be figured out first!
+I can build this API while I depend on this via a
+
+    "source-directories": "../elm-markdown-transforms/src"
+
+field.
 
 -}
 

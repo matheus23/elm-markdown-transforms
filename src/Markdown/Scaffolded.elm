@@ -1,29 +1,131 @@
 module Markdown.Scaffolded exposing
-    ( Block(..), map
-    , toHtml, extractText
+    ( Block(..)
+    , map
+    , parameterized, validating, withStaticHttpRequests
+    , foldHtml, foldWords, foldResults, foldStaticHttpRequests
+    , reduce
     , fromRenderer, toRenderer
-    , parameterized, validating, extractingText, withStaticHttpRequests
-    , bumpHeadingLevel, bumpHeadings
+    , bumpHeadings
     )
 
 {-|
 
-@docs Block, map
+
+# Rendering Markdown with Scaffolds and Folds
+
+(This is called recursion-schemes in other languages, but don't worry, you don't have to
+write recursive functions!)
+
+This is module provides a more **complicated**, but also **more powerful and
+composable** way of rendering markdown than the built-in elm-markdown
+[`Renderer`](https://package.elm-lang.org/packages/dillonkearns/elm-markdown/latest/Markdown-Renderer).
+
+If you feel a little overwhelmed with this module at first, I recommend taking a look at
+the [What are folds?](#what-are-folds-) section.
 
 
-# Example Renderers
+# Main Datastructure
 
-@docs toHtml, extractText
+@docs Block
+
+@docs map
+
+
+# High-level Transformations
+
+These functions are not as composable as [fold building blocks](#fold-building-blocks),
+but might suffice for your use case. Take a look at the other section if you find you need
+something better.
+
+@docs parameterized, validating, withStaticHttpRequests
+
+
+# Fold Building Blocks
+
+@docs foldHtml, foldWords, foldResults, foldStaticHttpRequests
+@docs reduce
+
+
+### What are folds?
+
+Often, we're working with functions of the type `Block view -> view`, where `view` might
+be something like `Html Msg` or `String`, etc. or, generally, functions of structure
+`Block a -> b`.
+
+I refer to functions of that structure as 'folds'. (This is somewhat different to the
+'real' terminology, but I feel like they capture the nature of 'folding once' very well.)
+
+If you know `List.foldr` you already know an example for a fold!
+The folds in this module are no different, we just write them in different ways.
+
+We can do the same thing we did for this library for lists:
+
+    type ListScaffold elem a
+        = Empty
+        | Cons elem a
+
+    foldEmpty = 0
+
+    foldCons a b = a + b
+
+    handler listElement =
+        case listElement of
+            Empty ->
+                foldEmpty
+
+            Cons elem accumulated ->
+                foldCons elem accumulated
+
+    foldl : (ListScaffold a b -> b) -> List a -> b
+    foldl handle list =
+        case list of
+            [] -> handle Empty
+            (x:xs) -> handle (Cons x xs)
+
+    foldl handler == List.foldl foldCons foldEmpty
+
+The last line illustrates how differnt ways of writing these folds relate: For
+`List.foldl` we simply provide the cases (empty or cons) as different arguments,
+for folds in this library, we create a custom type case for empty and cons.
+
+
+### Combining Folds
+
+You can combine multiple 'folds' into one. There's no function for doing this, but a
+pattern you might want to follow.
+
+Let's say you want to accumulate both all the words in your markdown and the `Html` you
+want it to render to, then you can do this:
+
+    type alias Rendered =
+        { html : Html Msg
+        , words : List String
+        }
+
+    foldRendered : Block Rendered -> Rendered
+    foldRendered block =
+        { html = block |> map .html |> foldHtml
+        , words = block |> map .words |> foldWords
+        }
+
+If you want to render to more things, just add another parameter to the record type and
+follow the pattern. It is even possible to let the rendered html to depend on the words
+inside itself (or maybe something else you're additionally folding to).
 
 
 # Conversions
 
+Did you already start to write a custom elm-markdown `Renderer`, but want to use this
+library? Don't worry. They're compatible. You can convert between them!
+
 @docs fromRenderer, toRenderer
 
 
-# Transformations
+# Utilities
 
-@docs parameterized, validating, extractingText, withStaticHttpRequests
+I mean to aggregate utilites for transforming Blocks in this section.
+
+@docs bumpHeadings
 
 -}
 
@@ -33,15 +135,28 @@ import Markdown.Block as Block
 import Markdown.Html
 import Markdown.Renderer exposing (Renderer)
 import Pages.StaticHttp as StaticHttp
+import Regex
 import Result.Extra as Result
 
 
 {-| A datatype that enumerates all possible ways markdown could wrap some children.
 
+Kind of like a 'Scaffold' around something that's already built, which will get torn down
+after building is finished.
+
 This does not include Html tags.
 
+If you look at the left hand sides of all of the functions in the elm-markdown
+[`Renderer`](https://package.elm-lang.org/packages/dillonkearns/elm-markdown/latest/Markdown-Renderer),
+you'll notice a similarity to this custom type, except it's missing a type for 'html'.
+
+Defining this data structure has some advantages in composing multiple Renderers.
+
 It has a type parameter `children`, which is supposed to be filled with `String`,
-`Html msg` or similar.
+`Html msg` or similar. Take a look at some [folds](#fold-building-blocks) for examples of this.
+
+There are some neat tricks you can do with this data structure, for example, `Block Never`
+represents only non-nested blocks of markdown.
 
 -}
 type Block children
@@ -68,6 +183,18 @@ type Block children
 
 
 {-| Transform each child of a `Block` using the given function.
+
+For example, we can transform the lists of words inside each block into concatenated
+Strings:
+
+    wordsToWordlist : Block (List String) -> Block String
+    wordsToWordlist block =
+        map (\listOfWords -> String.join ", " listOfWords)
+            block
+
+The ability to define this function is one of the reasons for our `Block` definition. If
+you try defining `map` for elm-markdown's `Renderer` you'll find out it doesn't work.
+
 -}
 map : (a -> b) -> Block a -> Block b
 map f markdown =
@@ -261,79 +388,90 @@ toRenderer { renderMarkdown, renderHtml } =
     }
 
 
-{-| -}
-toHtml : Block (Html msg) -> Html msg
-toHtml markdown =
+{-| This will fold a `Block` to `Html` similar to what the `defaultHtmlRenderer` in
+elm-markdown does. That is, it renders similar to what the CommonMark spec expects.
+
+It also takes a list of attributes for convenience, so if you want to attach styles,
+id's, classes or events, you can use this.
+
+However, **the attributes parameter is ignored for `Text` nodes**.
+
+-}
+foldHtml : List (Html.Attribute msg) -> Block (Html msg) -> Html msg
+foldHtml attributes markdown =
     case markdown of
         Heading { level, children } ->
             case level of
                 Block.H1 ->
-                    Html.h1 [] children
+                    Html.h1 attributes children
 
                 Block.H2 ->
-                    Html.h2 [] children
+                    Html.h2 attributes children
 
                 Block.H3 ->
-                    Html.h3 [] children
+                    Html.h3 attributes children
 
                 Block.H4 ->
-                    Html.h4 [] children
+                    Html.h4 attributes children
 
                 Block.H5 ->
-                    Html.h5 [] children
+                    Html.h5 attributes children
 
                 Block.H6 ->
-                    Html.h6 [] children
+                    Html.h6 attributes children
 
         Paragraph children ->
-            Html.p [] children
+            Html.p attributes children
 
         BlockQuote children ->
-            Html.blockquote [] children
+            Html.blockquote attributes children
 
         Text content ->
             Html.text content
 
         CodeSpan content ->
-            Html.code [] [ Html.text content ]
+            Html.code attributes [ Html.text content ]
 
         Strong children ->
-            Html.strong [] children
+            Html.strong attributes children
 
         Emphasis children ->
-            Html.em [] children
+            Html.em attributes children
 
         Link link ->
             case link.title of
                 Just title ->
                     Html.a
-                        [ Attr.href link.destination
-                        , Attr.title title
-                        ]
+                        (Attr.href link.destination
+                            :: Attr.title title
+                            :: attributes
+                        )
                         link.children
 
                 Nothing ->
-                    Html.a [ Attr.href link.destination ] link.children
+                    Html.a (Attr.href link.destination :: attributes) link.children
 
         Image imageInfo ->
             case imageInfo.title of
                 Just title ->
                     Html.img
-                        [ Attr.src imageInfo.src
-                        , Attr.alt imageInfo.alt
-                        , Attr.title title
-                        ]
+                        (Attr.src imageInfo.src
+                            :: Attr.alt imageInfo.alt
+                            :: Attr.title title
+                            :: attributes
+                        )
                         []
 
                 Nothing ->
                     Html.img
-                        [ Attr.src imageInfo.src
-                        , Attr.alt imageInfo.alt
-                        ]
+                        (Attr.src imageInfo.src
+                            :: Attr.alt imageInfo.alt
+                            :: attributes
+                        )
                         []
 
         UnorderedList { items } ->
-            Html.ul []
+            Html.ul attributes
                 (items
                     |> List.map
                         (\item ->
@@ -369,10 +507,10 @@ toHtml markdown =
             Html.ol
                 (case startingIndex of
                     1 ->
-                        [ Attr.start startingIndex ]
+                        Attr.start startingIndex :: attributes
 
                     _ ->
-                        []
+                        attributes
                 )
                 (items
                     |> List.map
@@ -383,137 +521,238 @@ toHtml markdown =
                 )
 
         CodeBlock { body } ->
-            Html.pre []
+            Html.pre attributes
                 [ Html.code []
                     [ Html.text body
                     ]
                 ]
 
         HardLineBreak ->
-            Html.br [] []
+            Html.br attributes []
 
         ThematicBreak ->
-            Html.hr [] []
+            Html.hr attributes []
 
         Table children ->
-            Html.table [] children
+            Html.table attributes children
 
         TableHeader children ->
-            Html.thead [] children
+            Html.thead attributes children
 
         TableBody children ->
-            Html.tbody [] children
+            Html.tbody attributes children
 
         TableRow children ->
-            Html.tr [] children
+            Html.tr attributes children
 
         TableHeaderCell maybeAlignment children ->
             let
                 attrs =
                     case maybeAlignment of
                         Just Block.AlignLeft ->
-                            [ Attr.align "left" ]
+                            Attr.align "left" :: attributes
 
                         Just Block.AlignCenter ->
-                            [ Attr.align "center" ]
+                            Attr.align "center" :: attributes
 
                         Just Block.AlignRight ->
-                            [ Attr.align "right" ]
+                            Attr.align "right" :: attributes
 
                         Nothing ->
-                            []
+                            attributes
             in
             Html.th attrs children
 
         TableCell children ->
-            Html.td [] children
+            Html.td attributes children
 
 
-{-| TODO: What does `extractText` mean in terms of Paragraphs, lists and code blocks?
+{-| Extracts all words from the blocks and inlines. Excludes any markup characters, if
+they had an effect on the markup.
+
+The words are split according to the `\s` javascript regular expression (regex).
+
+Inline code spans are split, but **code blocks fragments are ignored** (code spans are
+included).
+
+If you need something more specific, I highly recommend rolling your own function for
+this.
+
+This is useful if you need to e.g. create header slugs.
+
 -}
-extractText : Block String -> String
-extractText markdown =
-    case markdown of
+foldWords : Block (List String) -> List String
+foldWords =
+    let
+        whitespace =
+            Regex.fromStringWith { caseInsensitive = True, multiline = True } "\\s"
+                |> Maybe.withDefault Regex.never
+
+        words =
+            Regex.split whitespace
+
+        extractWords block =
+            case block of
+                Text content ->
+                    words content
+
+                CodeSpan content ->
+                    words content
+
+                _ ->
+                    []
+    in
+    reduce
+        { extract = extractWords
+        , accumulate = List.concat
+        }
+
+
+{-| Reduces a block down to anything that can be accumulated.
+
+You provide two functions
+
+  - `accumulate`: Describe how values of type `a` are combined. Examples: `List.concat`,
+    `List.sum`, etc.
+  - `extract`: Descibe how a blocks generate values that are supposed to be accumulated.
+
+For example, this can count the amount of headings in a markdown document:
+
+    reduce
+        { accumulate = List.sum
+        , extract =
+            \block ->
+                case block of
+                    Heading _ ->
+                        1
+
+                    _ ->
+                        0
+        }
+
+Or this extracts code blocks:
+
+    reduce
+        { accumulate = List.concat
+        , extract =
+            \block ->
+                case block of
+                    CodeBlock codeBlock ->
+                        [ codeBlock ]
+
+                    _ ->
+                        []
+        }
+
+The special thing about this function is how you don't have to worry about accumulating
+the other generated values recursively.
+
+-}
+reduce : { accumulate : List a -> a, extract : Block a -> a } -> Block a -> a
+reduce { extract, accumulate } block =
+    let
+        append a b =
+            accumulate [ a, b ]
+    in
+    case block of
         Heading { children } ->
-            String.concat children
+            accumulate children
+                |> append (extract block)
 
         Paragraph children ->
-            String.join "\n\n" children
+            accumulate children
+                |> append (extract block)
 
         BlockQuote children ->
-            String.concat children
+            accumulate children
+                |> append (extract block)
 
-        Text content ->
-            content
+        Text _ ->
+            extract block
 
-        CodeSpan content ->
-            content
+        CodeSpan _ ->
+            extract block
 
         Strong children ->
-            String.concat children
+            accumulate children
+                |> append (extract block)
 
         Emphasis children ->
-            String.concat children
+            accumulate children
+                |> append (extract block)
 
         Link link ->
-            String.concat link.children
+            accumulate link.children
+                |> append (extract block)
 
         Image _ ->
-            ""
+            extract block
 
         UnorderedList { items } ->
             items
-                |> List.map
-                    (\item ->
-                        case item of
-                            Block.ListItem _ children ->
-                                children
-                                    |> String.concat
-                    )
-                |> String.concat
+                |> List.concatMap
+                    (\(Block.ListItem _ child) -> child)
+                |> accumulate
+                |> append (extract block)
 
         OrderedList { items } ->
             items
-                |> List.map String.concat
-                |> String.concat
+                |> List.concat
+                |> accumulate
+                |> append (extract block)
 
         CodeBlock _ ->
-            ""
+            extract block
 
         HardLineBreak ->
-            "\n"
+            extract block
 
         ThematicBreak ->
-            " "
+            extract block
 
         Table children ->
-            String.join "\n" children
+            accumulate children
+                |> append (extract block)
 
         TableHeader children ->
-            String.join ", " children
+            accumulate children
+                |> append (extract block)
 
         TableBody children ->
-            String.join "\n" children
+            accumulate children
+                |> append (extract block)
 
         TableRow children ->
-            String.join ", " children
+            accumulate children
+                |> append (extract block)
 
         TableHeaderCell _ children ->
-            String.concat children
+            accumulate children
+                |> append (extract block)
 
         TableCell children ->
-            String.concat children
+            accumulate children
+                |> append (extract block)
 
 
 
 -- TRANSFORMATIONS
 
 
-{-| -}
+{-| Bump all `Heading` elements by given positive amount of levels.
+
+    bumpHeadings 2 (Heading { level = H1, rawText = "", children = [] })
+        == Heading { level = H3, rawText = "", children [] }
+    bumpHeadings 1 (Heading { level = H6, rawText = "", children = [] })
+        == Heading { level = H6, rawText = "", children = [] }
+    bumpHeadings -1 (Heading { level = H2, rawText = "", children = [] })
+        == Heading { level = H2, rawText = "", children = [] })
+
+-}
 bumpHeadings : Int -> Block view -> Block view
 bumpHeadings by markdown =
     let
-        -- vendored from
+        -- vendored from elm-loop
         for : Int -> (a -> a) -> a -> a
         for =
             let
@@ -535,7 +774,6 @@ bumpHeadings by markdown =
             other
 
 
-{-| -}
 bumpHeadingLevel : Block.HeadingLevel -> Block.HeadingLevel
 bumpHeadingLevel level =
     case level of
@@ -560,10 +798,10 @@ bumpHeadingLevel level =
 
 {-| Use this function if you want to parameterize your view by an environment.
 
-Another way of thinking about this usecase is, use this if you want to 'render to
+Another way of thinking about this use-case is: use this if you want to 'render to
 functions'.
 
-Examples for such environments are:
+Examples for what the `environment` type variable can be:
 
   - A `Model`, for rendering to `Model -> Html Msg` for `view`.
   - Templating information, in case you want to use markdown as templates and want to
@@ -571,7 +809,7 @@ Examples for such environments are:
 
 Usually, for the above usecases you would have to define a function of type
 
-    renderTemplate :
+    foldTemplate :
         Block (TemplateInfo -> Html msg)
         -> (TemplateInfo -> Html msg)
 
@@ -581,14 +819,58 @@ for elm-markdown.
 If you were to define such a function, you would have to pass around the `TemplateInfo`
 parameter a lot. This function will take care of that for you.
 
+
+### Anti use-cases
+
+In some cases using this function would be overkill. The alternative to this function is
+to simply parameterize your whole renderer (and not use this library):
+
+    renderMarkdown : List String -> Block (Html Msg) -> Html Msg
+    renderMarkdown censoredWords markdown =
+        ...
+
+    renderer : List String -> Markdown.Renderer (Html Msg)
+    renderer censoredWords =
+        toRenderer
+            { renderHtml = ...
+            , renderMarkdown = renderMarkdown censoredWords
+            }
+
+In this example you can see how we pass through the 'censored words'. It behaves kind of
+like some global context in which we create our renderer.
+
+It is hard to convey the abstract notion of when to use `parameterized` and when not to.
+I'll give it a try: If you want to parse your markdown once and need to quickly render
+different versions of it (for example with different `Model`s or different
+`TemplateInfo`s), then use this. In other cases, if you probably only want to de-couple
+some variable out of your renderer that is pretty static in general (for example censored
+words), don't use this.
+
+
+### `parameterized` over multiple Parameters
+
+If you want to parameterize your renderer over multiple variables, there are two options:
+
+1.  Add a field to the `environment` type used in this function
+2.  Take another parameter in curried form
+
+Although both are possible, I highly recommend the first option, as it is by far easier
+to deal with only one call to `parameterized`, not with two calls that would be required
+for option 2.
+
+
+### Missing Functionality
+
+If this function doesn't quite do what you want, just try to re-create what you need by
+using `map` directly. `parameterized` basically just documents a pattern that is really
+easy to re-create: Its implementation is just 1 line of code.
+
 -}
 parameterized :
     (Block view -> environment -> view)
     -> (Block (environment -> view) -> (environment -> view))
-parameterized collapser markdown env =
-    collapser
-        (map (\expectingEnv -> expectingEnv env) markdown)
-        env
+parameterized fold markdown env =
+    fold (map (\expectingEnv -> expectingEnv env) markdown) env
 
 
 {-| This transform enables validating the content of your `Block` before
@@ -602,21 +884,33 @@ This function's most prominent usecases are linting markdown files, so for examp
   - Generate errors/warnings on typos or words not contained in a dictionary
   - Disallow `h1` (alternatively, consider bumping the heading level)
 
-But it might also be possible that your `view` type can't _always_ be collapsed from a
+But it might also be possible that your `view` type can't _always_ be folded from a
 `Block view` to a `view`, so you need to generate an error in these cases.
+
+
+### Missing Functionality
+
+If this function doesn't quite do what you need to do, try using `foldResults`.
+The `validating` definition basically just documents a common pattern. Its implementation
+is just 1 line of code.
 
 -}
 validating :
     (Block view -> Result error view)
     -> (Block (Result error view) -> Result error view)
-validating collapser markdown =
-    markdown
-        |> collapseResults
-        |> Result.andThen collapser
+validating fold markdown =
+    markdown |> foldResults |> Result.andThen fold
 
 
-collapseResults : Block (Result error view) -> Result error (Block view)
-collapseResults markdown =
+{-| Thread results through your Blocks.
+
+The input is a block that contains possibly failed views. The output becomes `Err`, if
+any of the input block's children had an error (then it's the first error).
+If all of the block's children were `Ok`, then the result is going to be `Ok`.
+
+-}
+foldResults : Block (Result error view) -> Result error (Block view)
+foldResults markdown =
     case markdown of
         Heading { level, rawText, children } ->
             children
@@ -729,70 +1023,40 @@ collapseResults markdown =
                 |> Result.map TableCell
 
 
-
-{-
-   Unfortunately, this can't be implemented: They can be both blocks or inlines
-   introspecting :
-       (Block { original : Block.Block, collapsed : view } -> view)
-       -> (Block { original : Block.Block, collapsed : view } -> { original : Block.Block, collapsed : view })
-   introspecting collapser markdown =
-       { original = constructBlock (map .original markdown)
-       , collapsed = collapser markdown
-       }
-
-
-   constructBlock : Block Block.Block -> Block.Block
-   constructBlock markdown =
-
--}
-
-
-{-| This function allows your renderer to access the raw text inside of your markdown
-while rendering.
-
-This can be useful for generating `title` attributes or heading slugs.
-
--}
-extractingText :
-    (Block view -> String -> view)
-    -> (Block { rawText : String, view : view } -> { rawText : String, view : view })
-extractingText collapser markdown =
-    let
-        rawText =
-            extractText (map .rawText markdown)
-    in
-    { view = collapser (map .view markdown) rawText
-    , rawText = rawText
-    }
-
-
 {-| This transform allows you to perform elm-pages' StaticHttp requests without having to
 think about how to thread these through your renderer.
 
 Some applications that can be realized like this:
 
   - Verifying that all links in your markdown do resolve at page build-time
+    (Note: This currently needs some change in elm-pages, so it's not possible _yet_)
   - Giving custom elm-markdown HTML elements the ability to perform StaticHttp requests
+
+
+### Missing Functionality
+
+If this function doesn't quite do what you need to do, try using `foldStaticHttpRequests`.
+The `wihtStaticHttpRequests` definition basically just documents a common pattern.
+Its implementation is just 1 line of code.
 
 -}
 withStaticHttpRequests :
     (Block view -> StaticHttp.Request view)
     -> (Block (StaticHttp.Request view) -> StaticHttp.Request view)
-withStaticHttpRequests collapser markdown =
-    markdown
-        |> collapseStaticHttp
-        |> StaticHttp.andThen collapser
+withStaticHttpRequests fold markdown =
+    markdown |> foldStaticHttpRequests |> StaticHttp.andThen fold
 
 
-{-| This is basically a copy of `collapseResult` with some things string-replaced:
+{-| Accumulate elm-page's
+[`StaticHttp.Request`](https://package.elm-lang.org/packages/dillonkearns/elm-pages/latest/Pages-StaticHttp#Request)s
+over blocks.
 
-  - `Result.map` -> `StaticHttp.map`
-  - `Ok` -> `StaticHttp.succeed`
-  - `Result.combine` -> `allStaticHttp`
+Using this, it is possible to write folds that produce views as a result of performing
+static http requests.
 
 -}
-collapseStaticHttp : Block (StaticHttp.Request view) -> StaticHttp.Request (Block view)
-collapseStaticHttp markdown =
+foldStaticHttpRequests : Block (StaticHttp.Request view) -> StaticHttp.Request (Block view)
+foldStaticHttpRequests markdown =
     case markdown of
         Heading { level, rawText, children } ->
             children
