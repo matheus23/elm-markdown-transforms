@@ -55,8 +55,8 @@ main =
         , details = Just "Input some markdown and it will run elm/http requests and check for any dead links that start with 'http'."
         , color = Just (Color.rgb255 69 133 136)
         , maxWidth = 800
-        , githubUrl = Nothing
-        , documentationUrl = Nothing
+        , githubUrl = Just "https://github.com/matheus23/elm-markdown-transforms/blob/master/examples/src/CheckLinksViaHttp.elm"
+        , documentationUrl = Just "https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest"
         }
         { init =
             \() ->

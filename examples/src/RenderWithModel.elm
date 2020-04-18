@@ -126,8 +126,8 @@ main =
         , details = Just "The markdown from this example renders to a function of type 'Model -> Html Msg' so that it can be interactive."
         , color = Just (Color.rgb255 69 133 136)
         , maxWidth = 800
-        , githubUrl = Nothing
-        , documentationUrl = Nothing
+        , githubUrl = Just "https://github.com/matheus23/elm-markdown-transforms/blob/master/examples/src/RenderWithModel.elm"
+        , documentationUrl = Just "https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest"
         }
         { init = { revealed = False }
         , view = view

@@ -1,5 +1,7 @@
 # Elm-markdown-transforms
 
+See the examples at [elm-markdown-transforms.netlify.app](https://elm-markdown-transforms.netlify.app/).
+
 See the documentation at [package.elm-lang.org](https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest/).
 
 This package is for working with [elm-markdown](https://package.elm-lang.org/packages/dillonkearns/elm-markdown/latest/). It aims to make it easier for the users of elm-markdown to write more sophisticated [Renderer](https://package.elm-lang.org/packages/dillonkearns/elm-markdown/latest/Markdown-Renderer)s.
@@ -12,21 +14,6 @@ Some examples of tasks with markdown that this library may make easier for you:
 * Accumulating information about your markdown files: See [`reduce`](https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest/Markdown-Scaffolded#reduce).
 
 I highly recommend taking a look at the module documentation for [`Markdown.Scaffolded`](https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest/Markdown-Scaffolded).
-
-## Examples
-
-**Browse through some examples**:
-
-* Generating Slugs
-* Checking Links for validity
-  * Via Http
-  * Via StaticHttp
-* Rendering to function `Model -> Html Msg`
-* Generating a word-count
-* Extracting code blocks
-* Custom Html thingies
-  * Quizzes
-  * Carusel?
 
 ## Discussion/Contact
 
