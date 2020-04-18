@@ -2,7 +2,7 @@ module Markdown.Scaffolded exposing
     ( Block(..)
     , map
     , parameterized, validating, withStaticHttpRequests
-    , foldHtml, foldWords, foldResults, foldStaticHttpRequests
+    , foldHtml, foldFunction, foldWords, foldResults, foldStaticHttpRequests
     , reduce
     , fromRenderer, toRenderer
     , bumpHeadings
@@ -627,6 +627,7 @@ like so:
 foldFunction : Block (environment -> view) -> (environment -> Block view)
 foldFunction markdown environment =
     markdown |> map ((|>) environment)
+
 
 {-| Extracts all words from the blocks and inlines. Excludes any markup characters, if
 they had an effect on the markup.
