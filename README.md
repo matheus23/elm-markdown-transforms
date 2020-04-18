@@ -4,7 +4,7 @@ See the examples at [elm-markdown-transforms.netlify.app](https://elm-markdown-t
 
 See the documentation at [package.elm-lang.org](https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest/).
 
-This package is for working with [elm-markdown](https://package.elm-lang.org/packages/dillonkearns/elm-markdown/latest/). It aims to make it easier for the users of elm-markdown to write more sophisticated [Renderer](https://package.elm-lang.org/packages/dillonkearns/elm-markdown/latest/Markdown-Renderer)s.
+This package is for working with the [dillonkearns/elm-markdown](https://package.elm-lang.org/packages/dillonkearns/elm-markdown/latest/) package. It aims to make it easier for the users of elm-markdown to write more sophisticated [Renderer](https://package.elm-lang.org/packages/dillonkearns/elm-markdown/latest/Markdown-Renderer)s.
 
 Some examples of tasks with markdown that this library may make easier for you:
 

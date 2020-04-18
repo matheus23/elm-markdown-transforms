@@ -3,7 +3,7 @@
     "name": "matheus23/elm-markdown-transforms",
     "summary": "For creating advanced elm-markdown renderers (e.g. with model access).",
     "license": "MIT",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "exposed-modules": [
         "Markdown.Scaffolded"
     ],
