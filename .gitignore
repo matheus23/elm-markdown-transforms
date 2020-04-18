@@ -1,1 +1,5 @@
-/elm-stuff
+elm-stuff
+elm.js
+node_modules
+/examples/*.js
+/tests/VerifyExamples

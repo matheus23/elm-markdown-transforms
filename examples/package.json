@@ -1,0 +1,19 @@
+{
+  "name": "examples",
+  "version": "1.0.0",
+  "description": "This package.json was created to deploy and run the examples.",
+  "main": "index.js",
+  "scripts": {
+    "build": "yarn build:RenderWithModel && yarn build:CheckLinksViaHttp",
+    "build:RenderWithModel": "elm make src/RenderWithModel.elm --optimize --output=render-with-model.js",
+    "build:CheckLinksViaHttp": "elm make src/CheckLinksViaHttp.elm --optimize --output=check-links-via-http.js",
+    "serve": "http-server .",
+    "start": "elm reactor"
+  },
+  "author": "Philipp Krüger",
+  "license": "ISC",
+  "devDependencies": {
+    "elm": "^0.19.1-3",
+    "http-server": "^0.12.1"
+  }
+}

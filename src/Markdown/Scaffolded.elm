@@ -42,7 +42,7 @@ something better.
 
 # Fold Building Blocks
 
-@docs foldHtml, foldWords, foldResults, foldStaticHttpRequests
+@docs foldHtml, foldFunction, foldWords, foldResults, foldStaticHttpRequests
 @docs reduce
 
 
@@ -401,8 +401,9 @@ withStaticHttpRequests fold markdown =
     markdown |> foldStaticHttpRequests |> StaticHttp.andThen fold
 
 
-{-| This will fold a `Block` to `Html` similar to what the `defaultHtmlRenderer` in
-elm-markdown does. That is, it renders similar to what the CommonMark spec expects.
+{-| This will fold a `Block` to `Html` similar to what the
+[`defaultHtmlRenderer` in elm-markdown](https://package.elm-lang.org/packages/dillonkearns/elm-markdown/latest/Markdown-Renderer#defaultHtmlRenderer)
+does. That is, it renders similar to what the CommonMark spec expects.
 
 It also takes a list of attributes for convenience, so if you want to attach styles,
 id's, classes or events, you can use this.
@@ -579,6 +580,53 @@ foldHtml attributes markdown =
         TableCell children ->
             Html.td attributes children
 
+
+{-| Transform a block that contains functions into a function that produces blocks.
+
+One really common use-case is having access to a `Model` inside your html renderers.
+In these cases you want your markdown to be 'rendered to a function'.
+
+So let's say you've got a
+[`Markdown.Html.Renderer`]()
+like so:
+
+    renderHtml :
+        Markdown.Html.Renderer
+            (List (Model -> Html Msg)
+             -> (Model -> Html Msg)
+            )
+
+It has this type to be able to depend on the `Model`. Eventually you'll want to render to
+`Model -> Html Msg`.
+
+So now you can define your
+[`Markdown.Renderer.Renderer`]()
+like so:
+
+
+    renderer : Markdown.Renderer.Renderer (Model -> Html Msg)
+    renderer =
+        toRenderer
+            { renderHtml = renderHtml
+            , renderMarkdown = renderMarkdown
+            }
+
+    renderMarkdown :
+        Block (Model -> Html Msg)
+        -> (Model -> Html Msg)
+    renderMarkdown block model =
+        foldFunction block
+            -- ^ result : Model -> Block (Html Msg)
+            model
+            -- ^ result : Block (Html Msg)
+            |> foldHtml
+
+    -- ^ result : Html Msg
+
+-}
+foldFunction : Block (environment -> view) -> (environment -> Block view)
+foldFunction markdown environment =
+    markdown |> map ((|>) environment)
 
 {-| Extracts all words from the blocks and inlines. Excludes any markup characters, if
 they had an effect on the markup.
@@ -998,8 +1046,6 @@ reduce { extract, accumulate } block =
     the elm-markdown `Renderer`. This is useful if you want to make use
     of the utilities present in this library.
 
-For the opposite function, take a look at [`toRenderer`](#toRenderer).
-
 -}
 fromRenderer : Renderer view -> Block view -> view
 fromRenderer renderer markdown =
@@ -1068,8 +1114,6 @@ fromRenderer renderer markdown =
 {-| Convert a function that works with `Block` to a `Renderer` for use with
 elm-markdown.
 
-For the opposite, take a look at [`fromRenderer`](#fromRenderer)
-
 (The second parameter is a [`Markdown.Html.Renderer`](/packages/dillonkearns/elm-markdown/3.0.0/Markdown-Html#Renderer))
 
 -}
@@ -1114,12 +1158,46 @@ toRenderer { renderMarkdown, renderHtml } =
 
 {-| Bump all `Heading` elements by given positive amount of levels.
 
-    bumpHeadings 2 (Heading { level = H1, rawText = "", children = [] })
-        == Heading { level = H3, rawText = "", children [] }
-    bumpHeadings 1 (Heading { level = H6, rawText = "", children = [] })
-        == Heading { level = H6, rawText = "", children = [] }
-    bumpHeadings -1 (Heading { level = H2, rawText = "", children = [] })
-        == Heading { level = H2, rawText = "", children = [] })
+    import Markdown.Block as Block
+
+    bumpHeadings 2
+        (Heading
+            { level = Block.H1
+            , rawText = ""
+            , children = []
+            }
+        )
+    --> Heading
+    -->     { level = Block.H3
+    -->     , rawText = ""
+    -->     , children = []
+    -->     }
+
+    bumpHeadings 1
+        (Heading
+            { level = Block.H6
+            , rawText = ""
+            , children = []
+            }
+        )
+    --> Heading
+    -->     { level = Block.H6
+    -->     , rawText = ""
+    -->     , children = []
+    -->     }
+
+    bumpHeadings -1
+        (Heading
+            { level = Block.H2
+            , rawText = ""
+            , children = []
+            }
+        )
+    --> Heading
+    -->     { level = Block.H2
+    -->     , rawText = ""
+    -->     , children = []
+    -->     }
 
 -}
 bumpHeadings : Int -> Block view -> Block view

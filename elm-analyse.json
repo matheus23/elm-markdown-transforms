@@ -1,0 +1,7 @@
+{
+    "excludedPaths": [],
+    "checks": {
+        "SingleFieldRecord": false,
+        "MultiLineRecordFormatting": false
+    }
+}

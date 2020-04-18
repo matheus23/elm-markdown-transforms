@@ -13,6 +13,21 @@ Some examples of tasks with markdown that this library may make easier for you:
 
 I highly recommend taking a look at the module documentation for [`Markdown.Scaffolded`](https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest/Markdown-Scaffolded).
 
+## Examples
+
+**Browse through some examples**:
+
+* Generating Slugs
+* Checking Links for validity
+  * Via Http
+  * Via StaticHttp
+* Rendering to function `Model -> Html Msg`
+* Generating a word-count
+* Extracting code blocks
+* Custom Html thingies
+  * Quizzes
+  * Carusel?
+
 ## Discussion/Contact
 
 Feel free to open an issue, if you want to discuss something.
@@ -37,4 +52,4 @@ If you are looking for a tool that helps you update to the latest package versio
 
 I am aware that this decision might be controversial for good reasons. After all, we track dependencies precisely for being able to depend on older versions than the most recent one! And there might be good reasons for depending on older versions, if you just can't upgrade to a newer version for some reason that is out of your control.
 
-If there are any downsides I missed, of if you just don't agree with my priorization or anything about this matter, please reach out to me.
+If there are any downsides I missed, of if you just don't agree with my prioritization or anything about this matter, please reach out to me.
