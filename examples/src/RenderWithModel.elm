@@ -91,15 +91,17 @@ renderMarkdown markdown model =
 
                             _ ->
                                 Html.li []
-                                    (Html.input
-                                        [ Attr.type_ "checkbox"
-                                        , Events.onClick Reveal
-                                        , Attr.checked (task == Markdown.CompletedTask && model.revealed)
-                                        , Attr.style "margin-right" "4px"
-                                        ]
-                                        []
-                                        :: children
-                                    )
+                                    [ Html.label []
+                                        (Html.input
+                                            [ Attr.type_ "checkbox"
+                                            , Events.onClick Reveal
+                                            , Attr.checked (task == Markdown.CompletedTask && model.revealed)
+                                            , Attr.style "margin-right" "4px"
+                                            ]
+                                            []
+                                            :: children
+                                        )
+                                    ]
                     )
                 |> Html.ul []
 

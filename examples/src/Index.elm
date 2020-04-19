@@ -3,13 +3,9 @@ module Index exposing (main)
 import BeautifulExample
 import Color
 import Html exposing (Html)
-import Html.Attributes as Attr
-import Html.Events as Events
 import Markdown.Block as Markdown
-import Markdown.Html as MarkdownHtml
 import Markdown.Parser as Markdown
 import Markdown.Renderer as Markdown
-import Markdown.Scaffolded as Scaffolded
 import Result.Extra as Result
 
 
@@ -44,5 +40,5 @@ main =
         }
         { init = {}
         , view = always indexText
-        , update = \() {} -> {}
+        , update = \() _ -> {}
         }
