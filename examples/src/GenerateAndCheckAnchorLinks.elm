@@ -100,9 +100,7 @@ viewError errorMessage =
 customHtmlRenderer : Markdown.Renderer (AnchorValidation.Validated (Html Msg))
 customHtmlRenderer =
     Scaffolded.toRenderer
-        { renderHtml =
-            Markdown.Html.oneOf [ Markdown.Html.tag "div" (Html.div []) ]
-                |> AnchorValidation.liftHtmlRenderer
+        { renderHtml = Markdown.Html.oneOf []
         , renderMarkdown = renderMarkdown
         }
 
