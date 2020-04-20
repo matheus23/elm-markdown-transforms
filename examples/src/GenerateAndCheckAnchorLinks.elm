@@ -161,8 +161,8 @@ main =
         , details = Just "The markdown from this example contains an html tag (quiz) that resolves to an elm widget with access to the model."
         , color = Just (Color.rgb255 69 133 136)
         , maxWidth = 800
-        , githubUrl = Nothing
-        , documentationUrl = Nothing
+        , githubUrl = Just "https://github.com/matheus23/elm-markdown-transforms/blob/master/examples/src/GenerateAndCheckAnchorLinks.elm"
+        , documentationUrl = Just "https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest"
         }
         { init =
             \() ->
