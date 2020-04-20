@@ -4,9 +4,10 @@
   "description": "This package.json was created to deploy and run the examples.",
   "main": "index.js",
   "scripts": {
-    "build": "yarn build:Index && yarn build:RenderWithModel && yarn build:CheckLinksViaHttp",
+    "build": "yarn build:Index && yarn build:RenderWithModel && yarn build:CheckLinksViaHttp && yarn build:GenerateAndCheckAnchorLinks",
     "build:RenderWithModel": "elm make src/RenderWithModel.elm --optimize --output=render-with-model.js",
     "build:CheckLinksViaHttp": "elm make src/CheckLinksViaHttp.elm --optimize --output=check-links-via-http.js",
+    "build:GenerateAndCheckAnchorLinks": "elm make src/GenerateAndCheckAnchorLinks.elm --optimize --output=generate-and-check-anchor-links.js",
     "build:Index": "elm make src/Index.elm --optimize --output=index.js",
     "serve": "http-server .",
     "start": "elm reactor"
