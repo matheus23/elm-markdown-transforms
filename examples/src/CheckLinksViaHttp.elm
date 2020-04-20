@@ -3,7 +3,7 @@ port module CheckLinksViaHttp exposing (main)
 import BeautifulExample
 import Browser exposing (Document)
 import Color
-import Html exposing (Attribute, Html)
+import Html exposing (Html)
 import Html.Attributes as Attr
 import Html.Events as Events
 import Markdown.Block as Markdown
@@ -22,7 +22,9 @@ type alias Model =
 
 
 type alias LinkValidity =
-    { valid : List String, invalid : List String }
+    { valid : List String
+    , invalid : List String
+    }
 
 
 type Msg
@@ -46,34 +48,6 @@ Which one of these is dead?
 * Or, a link to [a cool talk](https://www.youtube.com/watch?v=mrwn2HuWUiA)
 
 We don't check for invalid [hash links](#invalid-link), though."""
-
-
-main : Platform.Program () Model Msg
-main =
-    BeautifulExample.document
-        { title = "Check Markdown files for dead links using elm-markdown-transforms"
-        , details = Just "Input some markdown and it will run elm/http requests and check for any dead links that start with 'http'."
-        , color = Just (Color.rgb255 69 133 136)
-        , maxWidth = 800
-        , githubUrl = Just "https://github.com/matheus23/elm-markdown-transforms/blob/master/examples/src/CheckLinksViaHttp.elm"
-        , documentationUrl = Just "https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest"
-        }
-        { init =
-            \() ->
-                update (MarkdownChanged exampleMarkdown)
-                    { markdown = ""
-                    , parsed = Err "This should be impossible. Report a bug if you see this."
-                    , linkValidity = Nothing
-                    }
-        , view = view
-        , update = update
-        , subscriptions =
-            always <|
-                Sub.batch
-                    [ successfullyPinged SuccessfullyPinged
-                    , unsuccessfullyPinged UnsuccessfullyPinged
-                    ]
-        }
 
 
 view : Model -> Document Msg
@@ -255,3 +229,35 @@ port successfullyPinged : (String -> msg) -> Sub msg
 
 
 port unsuccessfullyPinged : (String -> msg) -> Sub msg
+
+
+
+-- MAIN
+
+
+main : Platform.Program () Model Msg
+main =
+    BeautifulExample.document
+        { title = "Check Markdown files for dead links using elm-markdown-transforms"
+        , details = Just "Input some markdown and it will run elm/http requests and check for any dead links that start with 'http'."
+        , color = Just (Color.rgb255 69 133 136)
+        , maxWidth = 800
+        , githubUrl = Just "https://github.com/matheus23/elm-markdown-transforms/blob/master/examples/src/CheckLinksViaHttp.elm"
+        , documentationUrl = Just "https://package.elm-lang.org/packages/matheus23/elm-markdown-transforms/latest"
+        }
+        { init =
+            \() ->
+                update (MarkdownChanged exampleMarkdown)
+                    { markdown = ""
+                    , parsed = Err "This should be impossible. Report a bug if you see this."
+                    , linkValidity = Nothing
+                    }
+        , view = view
+        , update = update
+        , subscriptions =
+            always <|
+                Sub.batch
+                    [ successfullyPinged SuccessfullyPinged
+                    , unsuccessfullyPinged UnsuccessfullyPinged
+                    ]
+        }

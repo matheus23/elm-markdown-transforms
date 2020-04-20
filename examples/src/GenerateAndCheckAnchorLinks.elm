@@ -3,10 +3,11 @@ module GenerateAndCheckAnchorLinks exposing (main)
 import BeautifulExample
 import Browser exposing (Document)
 import Color
-import Html exposing (Attribute, Html)
+import Html exposing (Html)
 import Html.Attributes as Attr
 import Html.Events as Events
 import List.Extra as List
+import Markdown.AnchorValidation as AnchorValidation
 import Markdown.Block as Markdown
 import Markdown.Html
 import Markdown.Parser as Markdown
@@ -53,6 +54,108 @@ Oh, and we also check that we don't generate duplicated anchor links! :)
 """
 
 
+view : Model -> Document Msg
+view model =
+    { title = "Elm Markdown Link Checker"
+    , body =
+        List.concat
+            [ [ Html.h2 [] [ Html.text "This Markdown Document:" ]
+              , Html.textarea
+                    [ Attr.style "height" "400px"
+                    , Attr.style "min-width" "100%"
+                    , Attr.style "max-width" "100%"
+                    , Attr.style "font-family" "monospace"
+                    , Attr.value model.markdown
+                    , Events.onInput MarkdownChanged
+                    ]
+                    []
+              ]
+            , model.parsed
+                |> Result.andThen (Markdown.render customHtmlRenderer)
+                |> Result.andThen (AnchorValidation.resolve AnchorValidation.errorToString)
+                |> Result.unpack viewError viewMarkdown
+            ]
+    }
+
+
+viewMarkdown : List (Html Msg) -> List (Html Msg)
+viewMarkdown markdown =
+    [ Html.h2 [] [ Html.text "Renders to this Markdown:" ]
+    , Html.hr [] []
+    , Html.section [] markdown
+    ]
+
+
+viewError : String -> List (Html Msg)
+viewError errorMessage =
+    [ Html.pre [ Attr.style "word-space" "pre-wrap" ]
+        [ Html.text errorMessage ]
+    ]
+
+
+
+-- ANCHOR LINK CHECKING
+
+
+customHtmlRenderer : Markdown.Renderer (AnchorValidation.Validated (Html Msg))
+customHtmlRenderer =
+    Scaffolded.toRenderer
+        { renderHtml =
+            Markdown.Html.oneOf [ Markdown.Html.tag "div" (Html.div []) ]
+                |> AnchorValidation.liftHtmlRenderer
+        , renderMarkdown = renderMarkdown
+        }
+
+
+renderMarkdown : Scaffolded.Block (AnchorValidation.Validated (Html Msg)) -> AnchorValidation.Validated (Html Msg)
+renderMarkdown block =
+    case block of
+        -- For headings we generate anchors with `mapWithGeneratedAnchor`
+        Scaffolded.Heading _ ->
+            block
+                |> AnchorValidation.fold
+                |> AnchorValidation.mapWithGeneratedAnchor
+                    (\anchor -> Scaffolded.foldHtml [ Attr.id anchor ])
+
+        -- For links we validate, that their links are fine. validateLink would generate
+        -- an error otherwise.
+        -- validateLink also only validates links that start with "#".
+        Scaffolded.Link { destination } ->
+            block
+                |> AnchorValidation.fold
+                |> AnchorValidation.validateLink destination
+                |> AnchorValidation.map (Scaffolded.foldHtml [])
+
+        -- Anything else just propagates the validation, but doesn't do anything special
+        _ ->
+            block
+                |> AnchorValidation.fold
+                |> AnchorValidation.map (Scaffolded.foldHtml [])
+
+
+
+-- UPDATE
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        MarkdownChanged newMarkdown ->
+            ( { model
+                | markdown = newMarkdown
+                , parsed =
+                    newMarkdown
+                        |> Markdown.parse
+                        |> Result.mapError (List.map Markdown.deadEndToString >> String.join "\n")
+              }
+            , Cmd.none
+            )
+
+
+
+-- MAIN
+
+
 main : Platform.Program () Model Msg
 main =
     BeautifulExample.document
@@ -73,216 +176,3 @@ main =
         , update = update
         , subscriptions = always Sub.none
         }
-
-
-view : Model -> Document Msg
-view model =
-    { title = "Elm Markdown Link Checker"
-    , body =
-        List.concat
-            [ [ heading "This Markdown Document:"
-              , Html.textarea
-                    [ Attr.style "height" "400px"
-                    , Attr.style "min-width" "100%"
-                    , Attr.style "max-width" "100%"
-                    , Attr.style "font-family" "monospace"
-                    , Attr.value model.markdown
-                    , Events.onInput MarkdownChanged
-                    ]
-                    []
-              ]
-            , model.parsed
-                |> Result.andThen (Markdown.render customHtmlRenderer)
-                |> Result.andThen runRendered
-                |> Result.unpack viewError viewMarkdown
-            ]
-    }
-
-
-viewMarkdown : List (Html Msg) -> List (Html Msg)
-viewMarkdown markdown =
-    [ heading "Renders to this Markdown:"
-    , hairline
-    , Html.section [] markdown
-    ]
-
-
-viewError : String -> List (Html Msg)
-viewError errorMessage =
-    [ Html.pre [ Attr.style "word-space" "pre-wrap" ]
-        [ Html.text errorMessage ]
-    ]
-
-
-heading : String -> Html msg
-heading content =
-    Html.h2 [] [ Html.text content ]
-
-
-hairline : Html msg
-hairline =
-    Html.hr [] []
-
-
-bulletpoints : List String -> Html msg
-bulletpoints =
-    List.map (Html.text >> List.singleton >> Html.li []) >> Html.ul []
-
-
-paragraph : String -> Html msg
-paragraph =
-    Html.text >> List.singleton >> Html.p []
-
-
-
--- ANCHOR LINK CHECKING
-
-
-type alias Rendered a =
-    { html : Slugs -> Result String a
-    , words : List String
-    , slugs : Slugs
-    }
-
-
-type alias Slugs =
-    List String
-
-
-runRendered : List (Rendered a) -> Result String (List a)
-runRendered rendereds =
-    let
-        globalSlugs =
-            List.concatMap .slugs rendereds
-
-        showList showElement =
-            List.map showElement
-                >> String.join ", "
-                >> (\str -> "[ " ++ str ++ " ]")
-
-        groupedSlugs =
-            globalSlugs
-                |> List.sort
-                |> List.group
-                |> List.map (\( a, b ) -> a :: b)
-    in
-    if List.all (\ls -> List.length ls == 1) groupedSlugs then
-        rendereds
-            |> List.map (\child -> child.html globalSlugs)
-            |> Result.combine
-
-    else
-        Err <|
-            String.join "\n"
-                [ "There are some heading slugs that were generated multiple times."
-                , "This means, that if you try to refer to one of these slugs, the"
-                , "destination is going to be ambiguous. Maybe you have mistakenly"
-                , "added two headings with the same name?"
-                , ""
-                , "Here is a list of the duplicated slugs that were generated:"
-                , groupedSlugs
-                    |> List.filter (\ls -> List.length ls > 1)
-                    |> showList (showList identity)
-                ]
-
-
-renderedHtmlRenderer :
-    Markdown.Html.Renderer (List a -> a)
-    -> Markdown.Html.Renderer (List (Rendered a) -> Rendered a)
-renderedHtmlRenderer =
-    Markdown.Html.map
-        (\basicRenderChildren rendereds ->
-            { words = List.concatMap .words rendereds
-            , slugs = List.concatMap .slugs rendereds
-            , html =
-                \globalSlugs ->
-                    rendereds
-                        |> List.map (\child -> child.html globalSlugs)
-                        |> Result.combine
-                        |> Result.map basicRenderChildren
-            }
-        )
-
-
-customHtmlRenderer : Markdown.Renderer (Rendered (Html Msg))
-customHtmlRenderer =
-    Scaffolded.toRenderer
-        { renderHtml = Markdown.Html.oneOf []
-        , renderMarkdown = renderMarkdown
-        }
-
-
-renderMarkdown : Scaffolded.Block (Rendered (Html Msg)) -> Rendered (Html Msg)
-renderMarkdown block =
-    let
-        words =
-            block
-                |> Scaffolded.map .words
-                |> Scaffolded.foldWords
-
-        htmlDefault attributes =
-            \globalSlugs ->
-                block
-                    |> Scaffolded.map
-                        (\rendered -> rendered.html globalSlugs)
-                    |> Scaffolded.foldResults
-                    |> Result.map (Scaffolded.bumpHeadings 1 >> Scaffolded.foldHtml attributes)
-
-        renderDefault =
-            { html = htmlDefault []
-            , words = words
-            , slugs = []
-            }
-    in
-    case block of
-        Scaffolded.Heading _ ->
-            let
-                slug =
-                    words
-                        |> String.join "-"
-                        |> String.toLower
-            in
-            { renderDefault
-                | slugs = [ slug ]
-                , html = htmlDefault [ Attr.id slug ]
-            }
-
-        Scaffolded.Link link ->
-            { renderDefault
-                | html =
-                    \globalSlugs ->
-                        if isValidLink globalSlugs link.destination then
-                            htmlDefault [] globalSlugs
-
-                        else
-                            Err ("Invalid slug link: " ++ link.destination)
-            }
-
-        _ ->
-            renderDefault
-
-
-isValidLink : Slugs -> String -> Bool
-isValidLink globalSlugs destination =
-    not (String.startsWith "#" destination)
-        || List.member (String.dropLeft 1 destination) globalSlugs
-
-
-applyModel : model -> List (model -> view) -> List view
-applyModel model =
-    List.map (\renderChild -> renderChild model)
-
-
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    case msg of
-        MarkdownChanged newMarkdown ->
-            ( { model
-                | markdown = newMarkdown
-                , parsed =
-                    newMarkdown
-                        |> Markdown.parse
-                        |> Result.mapError (List.map Markdown.deadEndToString >> String.join "\n")
-              }
-            , Cmd.none
-            )
