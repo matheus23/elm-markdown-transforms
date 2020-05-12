@@ -88,7 +88,7 @@ viewMarkdown markdown =
 
 viewError : String -> List (Html Msg)
 viewError errorMessage =
-    [ Html.pre [ Attr.style "word-space" "pre-wrap" ]
+    [ Html.pre [ Attr.style "white-space" "pre-wrap" ]
         [ Html.text errorMessage ]
     ]
 

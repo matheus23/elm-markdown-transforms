@@ -2,7 +2,7 @@ module Markdown.Scaffolded exposing
     ( Block(..)
     , map
     , parameterized, validating, withStaticHttpRequests
-    , foldHtml, foldFunction, foldWords, foldResults, foldStaticHttpRequests
+    , foldHtml, foldFunction, foldWords, foldResults, foldStaticHttpRequests, foldPretty
     , reduce
     , fromRenderer, toRenderer
     , bumpHeadings
@@ -42,7 +42,7 @@ something better.
 
 # Fold Building Blocks
 
-@docs foldHtml, foldFunction, foldWords, foldResults, foldStaticHttpRequests
+@docs foldHtml, foldFunction, foldWords, foldResults, foldStaticHttpRequests, foldPretty
 @docs reduce
 
 
@@ -911,6 +911,148 @@ foldStaticHttpRequests markdown =
             children
                 |> allStaticHttp
                 |> StaticHttp.map TableCell
+
+
+{-| -}
+foldPretty : Block String -> String
+foldPretty block =
+    let
+        escape toEscape =
+            String.replace toEscape ("\\" ++ toEscape)
+    in
+    case block of
+        Heading { level, children } ->
+            (case level of
+                Block.H1 ->
+                    "# "
+
+                Block.H2 ->
+                    "## "
+
+                Block.H3 ->
+                    "### "
+
+                Block.H4 ->
+                    "#### "
+
+                Block.H5 ->
+                    "##### "
+
+                Block.H6 ->
+                    "###### "
+            )
+                ++ String.concat children
+
+        Text content ->
+            content
+
+        Paragraph children ->
+            String.concat children
+
+        BlockQuote children ->
+            children
+                |> String.concat
+                |> String.split "\n"
+                |> List.map (\line -> "> " ++ line)
+                |> String.join "\n"
+
+        Strong children ->
+            -- TODO Escaping
+            "**" ++ String.replace "**" "\\**" (String.concat children) ++ "**"
+
+        Emphasis children ->
+            "_" ++ escape "_" (String.concat children) ++ "_"
+
+        CodeSpan content ->
+            "`" ++ content ++ "`"
+
+        Link { destination, children } ->
+            "[" ++ escape "]" (escape ")" (String.concat children)) ++ "](" ++ destination ++ ")"
+
+        Image { alt, src, title } ->
+            "!["
+                ++ escape "]" (escape ")" alt)
+                ++ "]("
+                ++ src
+                ++ (title
+                        |> Maybe.map (\t -> " \"" ++ escape "\"" t ++ "\"")
+                        |> Maybe.withDefault ""
+                   )
+                ++ ")"
+
+        UnorderedList { items } ->
+            items
+                |> List.map
+                    (\(Block.ListItem task children) ->
+                        case task of
+                            Block.NoTask ->
+                                "- " ++ String.concat children
+
+                            Block.IncompleteTask ->
+                                "- [ ] " ++ String.concat children
+
+                            Block.CompletedTask ->
+                                "- [X] " ++ String.concat children
+                    )
+                |> String.join "\n"
+
+        OrderedList { startingIndex, items } ->
+            items
+                |> List.indexedMap
+                    (\index children ->
+                        String.fromInt (index + startingIndex)
+                            ++ ". "
+                            ++ String.concat children
+                    )
+                |> String.join "\n"
+
+        CodeBlock { body, language } ->
+            case language of
+                Just langName ->
+                    "```"
+                        ++ langName
+                        ++ "\n"
+                        ++ body
+                        ++ "\n```"
+
+                Nothing ->
+                    let
+                        bodyLines =
+                            body
+                                |> String.split "\n"
+                    in
+                    if bodyLines |> List.any (not << String.startsWith " ") then
+                        bodyLines
+                            |> List.map ((++) "    ")
+                            |> String.join "\n"
+
+                    else
+                        "```\n" ++ body ++ "```"
+
+        HardLineBreak ->
+            "\n\n"
+
+        ThematicBreak ->
+            "--------------------\n"
+
+        -- Currently, elm-markdown doesn't support tables (they're not parsed)
+        Table _ ->
+            ""
+
+        TableHeader _ ->
+            ""
+
+        TableBody _ ->
+            ""
+
+        TableRow _ ->
+            ""
+
+        TableCell _ ->
+            ""
+
+        TableHeaderCell _ _ ->
+            ""
 
 
 {-| Reduces a block down to anything that can be accumulated.
