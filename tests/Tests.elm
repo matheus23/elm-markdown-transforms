@@ -12,7 +12,7 @@ import Test exposing (..)
 
 
 {-
-   Unfortunately, there are basically no tests, yet. You're welcome to contribute tests!
+   Unfortunately, there are few tests, right now. You're welcome to contribute tests!
    I personally test this project using the /examples and another semi-production app.
 
    If you want to contribute: There are good opportunities for creating property-based
@@ -24,23 +24,75 @@ import Test exposing (..)
 
 suite : Test
 suite =
-    describe "Formatting Markdown"
-        [ test "round-trip" <|
-            \_ ->
-                Result.map2
-                    (\original prettyprinted ->
-                        Expect.equalLists original prettyprinted
-                    )
-                    (exampleMarkdown
-                        |> parseMarkdown
-                        |> Result.mapError ((++) "Error in normal Markdown: ")
-                    )
-                    (exampleMarkdown
-                        |> prettyprint
-                        |> Result.andThen parseMarkdown
-                        |> Result.mapError ((++) "Error in pretty-printed Markdown: ")
-                    )
-                    |> expectOk
+    describe "Markdown"
+        [ describe "Formatting"
+            [ test "round-trip" <|
+                \_ ->
+                    Result.map2
+                        (\original prettyprinted ->
+                            Expect.equalLists original prettyprinted
+                        )
+                        (exampleMarkdown
+                            |> parseMarkdown
+                            |> Result.mapError ((++) "Error in normal Markdown: ")
+                        )
+                        (exampleMarkdown
+                            |> prettyprint
+                            |> Result.andThen parseMarkdown
+                            |> Result.mapError ((++) "Error in pretty-printed Markdown: ")
+                        )
+                        |> expectOk
+            ]
+        , describe "Scaffolded"
+            [ test "foldIndexed" <|
+                \_ ->
+                    let
+                        renderPath : List Int -> String
+                        renderPath path =
+                            "(" ++ String.join "," (List.map String.fromInt path) ++ ") "
+
+                        reduceWithIndices : Scaffolded.Block (List Int -> String) -> List Int -> String
+                        reduceWithIndices block path =
+                            case Scaffolded.foldIndexed block path of
+                                Scaffolded.Heading { level, rawText, children } ->
+                                    Scaffolded.Heading
+                                        { level = level
+                                        , rawText = rawText
+                                        , children = renderPath path :: children
+                                        }
+                                        |> Scaffolded.reducePretty
+
+                                other ->
+                                    Scaffolded.reducePretty other
+
+                        input =
+                            String.join "\n"
+                                [ "# Everything has indices."
+                                , ""
+                                , "If you write some text in between, you'll see that following headings' indices change."
+                                , ""
+                                , "## Another heading."
+                                ]
+                    in
+                    parseMarkdown input
+                        |> Result.andThen
+                            (Markdown.render
+                                (Scaffolded.toRenderer
+                                    { renderHtml = Markdown.Html.oneOf []
+                                    , renderMarkdown = reduceWithIndices
+                                    }
+                                )
+                            )
+                        |> Result.map (List.indexedMap (\index expectsPath -> expectsPath [ index ]))
+                        |> Result.map
+                            (Expect.equalLists
+                                [ "# (0) Everything has indices."
+                                , "If you write some text in between, you'll see that following headings' indices change."
+                                , "## (2) Another heading."
+                                ]
+                            )
+                        |> expectOk
+            ]
         ]
 
 

@@ -6,6 +6,7 @@ module Markdown.Scaffolded exposing
     , foldFunction, foldResults, foldStaticHttpRequests
     , fromRenderer, toRenderer
     , bumpHeadings
+    , foldIndexed
     )
 
 {-|
@@ -758,6 +759,18 @@ like so:
 foldFunction : Block (environment -> view) -> (environment -> Block view)
 foldFunction markdown environment =
     markdown |> map ((|>) environment)
+
+
+{-| Fold your blocks with index information. This uses [`indexedMap`](#indexedMap) under
+the hood.
+
+This is quite advanced, but also very useful. If you're looking for a working example,
+please take a look at the test for this function.
+
+-}
+foldIndexed : Block (List Int -> view) -> (List Int -> Block view)
+foldIndexed markdown pathSoFar =
+    markdown |> indexedMap (\indices view -> view (indices ++ pathSoFar))
 
 
 {-| Extracts all words from the blocks and inlines. Excludes any markup characters, if
