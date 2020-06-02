@@ -113,7 +113,7 @@ renderMarkdown block =
             block
                 |> AnchorValidation.fold
                 |> AnchorValidation.mapWithGeneratedAnchor
-                    (\anchor -> Scaffolded.foldHtml [ Attr.id anchor ])
+                    (\anchor -> Scaffolded.reduceHtml [ Attr.id anchor ])
 
         -- For links we validate, that their links are fine. validateLink would generate
         -- an error otherwise.
@@ -122,13 +122,13 @@ renderMarkdown block =
             block
                 |> AnchorValidation.fold
                 |> AnchorValidation.validateLink destination
-                |> AnchorValidation.map (Scaffolded.foldHtml [])
+                |> AnchorValidation.map (Scaffolded.reduceHtml [])
 
         -- Anything else just propagates the validation, but doesn't do anything special
         _ ->
             block
                 |> AnchorValidation.fold
-                |> AnchorValidation.map (Scaffolded.foldHtml [])
+                |> AnchorValidation.map (Scaffolded.reduceHtml [])
 
 
 

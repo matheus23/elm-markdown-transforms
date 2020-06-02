@@ -107,7 +107,7 @@ renderMarkdown markdown model =
 
         -- any other markdown gets rendered in the standard way
         _ ->
-            Scaffolded.foldHtml [] markdown
+            Scaffolded.reduceHtml [] markdown
 
 
 viewError : String -> List (Html Msg)
