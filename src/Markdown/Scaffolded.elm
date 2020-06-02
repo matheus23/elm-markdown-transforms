@@ -1,6 +1,6 @@
 module Markdown.Scaffolded exposing
     ( Block(..)
-    , map
+    , map, indexedMap
     , parameterized, validating, withStaticHttpRequests
     , reduceHtml, reduceWords, reducePretty, reduce
     , foldFunction, foldResults, foldStaticHttpRequests
@@ -28,7 +28,7 @@ the [What are reducers?](#what-are-reducers-) section.
 
 @docs Block
 
-@docs map
+@docs map, indexedMap
 
 
 # High-level Transformations
@@ -215,6 +215,19 @@ Strings:
         map (\listOfWords -> String.join ", " listOfWords)
             block
 
+    Paragraph
+        [ [ "This", "paragraph", "was", "full", "of", "individual", "words", "once." ]
+        , [ "It", "also", "contained", "another", "paragraph" ]
+        ]
+        |> wordsToWordlist
+    --> Paragraph
+    -->     [ "This, paragraph, was, full, of, individual, words, once."
+    -->     , "It, also, contained, another, paragraph"
+    -->     ]
+
+    HardLineBreak |> wordsToWordlist
+    --> HardLineBreak
+
 The ability to define this function is one of the reasons for our `Block` definition. If
 you try defining `map` for elm-markdown's `Renderer` you'll find out it doesn't work.
 
@@ -288,6 +301,105 @@ map f markdown =
 
         TableHeaderCell alignment children ->
             TableHeaderCell alignment (List.map f children)
+
+
+{-| Block's children are mapped from 0 to n (if n+1 is the amount of children).
+
+Most arguments to the mapping function are therefore [0], [1], ... etc.
+
+All children will get unique `List Int` arguments.
+
+In some cases like lists, there might be two levels of indices: [0,0], or [1,0].
+
+In these cases, the first integer is the 'closest' index from the point of view of the
+child.
+
+    OrderedList
+        { startingIndex = 0
+        , items =
+            [ [ (), () ]
+            , [ (), (), () ]
+            ]
+        }
+        |> indexedMap (\indices _ -> indices)
+    --> OrderedList
+    -->     { startingIndex = 0
+    -->     , items =
+    -->         [ [ [ 0, 0 ], [ 1, 0 ] ]
+    -->         , [ [ 0, 1 ], [ 1, 1 ], [ 2, 1 ] ]
+    -->         ]
+    -->     }
+
+-}
+indexedMap : (List Int -> a -> b) -> Block a -> Block b
+indexedMap f markdown =
+    case markdown of
+        Heading { level, rawText, children } ->
+            Heading { level = level, rawText = rawText, children = List.indexedMap (\index -> f [ index ]) children }
+
+        Paragraph children ->
+            Paragraph (List.indexedMap (\index -> f [ index ]) children)
+
+        BlockQuote children ->
+            BlockQuote (List.indexedMap (\index -> f [ index ]) children)
+
+        Text content ->
+            Text content
+
+        CodeSpan content ->
+            CodeSpan content
+
+        Strong children ->
+            Strong (List.indexedMap (\index -> f [ index ]) children)
+
+        Emphasis children ->
+            Emphasis (List.indexedMap (\index -> f [ index ]) children)
+
+        Link { title, destination, children } ->
+            Link { title = title, destination = destination, children = List.indexedMap (\index -> f [ index ]) children }
+
+        Image imageInfo ->
+            Image imageInfo
+
+        UnorderedList { items } ->
+            UnorderedList
+                { items =
+                    List.indexedMap
+                        (\indexA (Block.ListItem task children) ->
+                            Block.ListItem task (List.indexedMap (\indexB -> f [ indexB, indexA ]) children)
+                        )
+                        items
+                }
+
+        OrderedList { startingIndex, items } ->
+            OrderedList { startingIndex = startingIndex, items = List.indexedMap (\indexA -> List.indexedMap (\indexB -> f [ indexB, indexA ])) items }
+
+        CodeBlock codeBlockInfo ->
+            CodeBlock codeBlockInfo
+
+        HardLineBreak ->
+            HardLineBreak
+
+        ThematicBreak ->
+            ThematicBreak
+
+        Table children ->
+            Table (List.indexedMap (\index -> f [ index ]) children)
+
+        TableHeader children ->
+            TableHeader (List.indexedMap (\index -> f [ index ]) children)
+
+        TableBody children ->
+            TableBody (List.indexedMap (\index -> f [ index ]) children)
+
+        TableRow children ->
+            TableRow (List.indexedMap (\index -> f [ index ]) children)
+
+        TableCell children ->
+            TableCell (List.indexedMap (\index -> f [ index ]) children)
+
+        TableHeaderCell alignment children ->
+            TableHeaderCell alignment (List.indexedMap (\index -> f [ index ]) children)
 
 
 {-| Use this function if you want to parameterize your view by an environment.
