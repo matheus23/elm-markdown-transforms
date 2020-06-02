@@ -3,7 +3,7 @@ module Markdown.Scaffolded exposing
     , map
     , parameterized, validating, withStaticHttpRequests
     , reduceHtml, reduceWords, reducePretty, reduce
-    , foldFunction, foldResults, foldStaticHttpRequests
+    , foldFunction, foldResults, foldResultME, foldStaticHttpRequests
     , fromRenderer, toRenderer
     , bumpHeadings
     )
@@ -43,7 +43,7 @@ something better.
 # Transformation Building Blocks
 
 @docs reduceHtml, reduceWords, reducePretty, reduce
-@docs foldFunction, foldResults, foldStaticHttpRequests
+@docs foldFunction, foldResults, foldResultME, foldStaticHttpRequests
 
 
 ### What are 'reducers'?
@@ -156,6 +156,7 @@ import Markdown.Renderer exposing (Renderer)
 import Pages.StaticHttp as StaticHttp
 import Regex
 import Result.Extra as Result
+import ResultME exposing (ResultME)
 
 
 
@@ -807,6 +808,125 @@ foldResults markdown =
         TableCell children ->
             children
                 |> Result.combine
+                |> Result.map TableCell
+
+
+{-| Like `foldResults`, but works with the elm-error-handling package.
+
+This allows throwing multiple errors ('Result Multiple Errors').
+
+-}
+foldResultME : Block (ResultME err view) -> ResultME err (Block view)
+foldResultME block =
+    case block of
+        Heading { level, rawText, children } ->
+            children
+                |> ResultME.combineList
+                |> Result.map
+                    (\chdr ->
+                        Heading { level = level, rawText = rawText, children = chdr }
+                    )
+
+        Paragraph children ->
+            children
+                |> ResultME.combineList
+                |> Result.map Paragraph
+
+        BlockQuote children ->
+            children
+                |> ResultME.combineList
+                |> Result.map BlockQuote
+
+        Text content ->
+            Text content
+                |> Ok
+
+        CodeSpan content ->
+            CodeSpan content
+                |> Ok
+
+        Strong children ->
+            children
+                |> ResultME.combineList
+                |> Result.map Strong
+
+        Emphasis children ->
+            children
+                |> ResultME.combineList
+                |> Result.map Emphasis
+
+        Link { title, destination, children } ->
+            children
+                |> ResultME.combineList
+                |> Result.map
+                    (\chdr ->
+                        Link { title = title, destination = destination, children = chdr }
+                    )
+
+        Image imageInfo ->
+            Image imageInfo
+                |> Ok
+
+        UnorderedList { items } ->
+            items
+                |> List.map
+                    (\(Block.ListItem task children) ->
+                        children
+                            |> ResultME.combineList
+                            |> Result.map (Block.ListItem task)
+                    )
+                |> ResultME.combineList
+                |> Result.map (\itms -> UnorderedList { items = itms })
+
+        OrderedList { startingIndex, items } ->
+            items
+                |> List.map ResultME.combineList
+                |> ResultME.combineList
+                |> Result.map
+                    (\itms ->
+                        OrderedList { startingIndex = startingIndex, items = itms }
+                    )
+
+        CodeBlock codeBlockInfo ->
+            CodeBlock codeBlockInfo
+                |> Ok
+
+        HardLineBreak ->
+            HardLineBreak
+                |> Ok
+
+        ThematicBreak ->
+            ThematicBreak
+                |> Ok
+
+        Table children ->
+            children
+                |> ResultME.combineList
+                |> Result.map Table
+
+        TableHeader children ->
+            children
+                |> ResultME.combineList
+                |> Result.map TableHeader
+
+        TableBody children ->
+            children
+                |> ResultME.combineList
+                |> Result.map TableBody
+
+        TableRow children ->
+            children
+                |> ResultME.combineList
+                |> Result.map TableRow
+
+        TableHeaderCell maybeAlignment children ->
+            children
+                |> ResultME.combineList
+                |> Result.map (TableHeaderCell maybeAlignment)
+
+        TableCell children ->
+            children
+                |> ResultME.combineList
                 |> Result.map TableCell
 
 
