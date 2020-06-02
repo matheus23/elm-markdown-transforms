@@ -8,19 +8,21 @@
     "dependencies": {
         "direct": {
             "avh4/elm-beautiful-example": "2.0.1",
+            "avh4/elm-color": "1.0.0",
             "dillonkearns/elm-markdown": "4.0.2",
             "dillonkearns/elm-pages": "4.0.1",
             "elm/browser": "1.0.2",
             "elm/core": "1.0.5",
             "elm/html": "1.0.0",
+            "elm/http": "2.0.0",
             "elm/parser": "1.1.0",
             "elm/regex": "1.0.0",
             "elm/url": "1.0.0",
             "elm-community/list-extra": "8.2.4",
             "elm-community/result-extra": "2.4.0",
-            "elm/http": "2.0.0",
-            "avh4/elm-color": "1.0.0",
-            "rtfeldman/elm-hex": "1.0.0"
+            "mgold/elm-nonempty-list": "4.1.0",
+            "rtfeldman/elm-hex": "1.0.0",
+            "the-sett/elm-error-handling": "2.2.0"
         },
         "indirect": {
             "elm/bytes": "1.0.8",
@@ -34,7 +36,6 @@
             "fredcy/elm-parseint": "2.0.1",
             "lukewestby/elm-string-interpolate": "1.0.4",
             "mdgriffith/elm-markup": "3.0.1",
-            "mgold/elm-nonempty-list": "4.1.0",
             "miniBill/elm-codec": "1.2.0",
             "noahzgordon/elm-color-extra": "1.0.2",
             "tripokey/elm-fuzzy": "5.2.1",

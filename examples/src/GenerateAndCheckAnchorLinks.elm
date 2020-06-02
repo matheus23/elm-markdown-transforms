@@ -7,6 +7,7 @@ import Html exposing (Html)
 import Html.Attributes as Attr
 import Html.Events as Events
 import List.Extra as List
+import List.Nonempty as Nonempty exposing (Nonempty)
 import Markdown.AnchorValidation as AnchorValidation
 import Markdown.Block as Markdown
 import Markdown.Html
@@ -71,9 +72,10 @@ view model =
                     []
               ]
             , model.parsed
-                |> Result.andThen (Markdown.render customHtmlRenderer)
-                |> Result.andThen (AnchorValidation.resolve AnchorValidation.errorToString)
-                |> Result.unpack viewError viewMarkdown
+                |> Result.mapError Nonempty.fromElement
+                |> Result.andThen (Markdown.render customHtmlRenderer >> Result.mapError Nonempty.fromElement)
+                |> Result.andThen (AnchorValidation.resolve >> Result.mapError (Nonempty.map AnchorValidation.errorToString))
+                |> Result.unpack viewErrors viewMarkdown
             ]
     }
 
@@ -86,10 +88,19 @@ viewMarkdown markdown =
     ]
 
 
-viewError : String -> List (Html Msg)
-viewError errorMessage =
-    [ Html.pre [ Attr.style "white-space" "pre-wrap" ]
-        [ Html.text errorMessage ]
+viewErrors : Nonempty String -> List (Html Msg)
+viewErrors errorMessages =
+    let
+        viewError errorMessage =
+            Html.pre [ Attr.style "white-space" "pre-wrap" ]
+                [ Html.text errorMessage ]
+    in
+    [ Html.text "There were some errors:"
+    , Html.ul []
+        (errorMessages
+            |> Nonempty.map (viewError >> List.singleton >> Html.li [])
+            |> Nonempty.toList
+        )
     ]
 
 
