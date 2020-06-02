@@ -42,7 +42,6 @@ import List.Extra as List
 import Markdown.Html
 import Markdown.Scaffolded as Scaffolded
 import Result.Extra as Result
-import ResultME exposing (ResultME)
 
 
 {-| The type we use for folds. You don't need to worry about it. You can use the API for
@@ -59,7 +58,7 @@ Imagine anchor link checking to work in two phases:
 
 -}
 type alias Validated view =
-    { validate : Anchors -> ResultME Error view
+    { validate : Anchors -> Result Error view
     , words : List String
     , generatedAnchors : Anchors
     }
@@ -85,8 +84,8 @@ type Error
 
 {-| Resolve validation errors
 -}
-resolve : List (Validated a) -> ResultME Error (List a)
-resolve validations =
+resolve : (Error -> error) -> List (Validated a) -> Result error (List a)
+resolve handleErrors validations =
     let
         allGeneratedAnchors =
             List.concatMap .generatedAnchors validations
@@ -100,13 +99,15 @@ resolve validations =
     if List.all (\ls -> List.length ls == 1) groupedAnchors then
         validations
             |> List.map (\{ validate } -> validate allGeneratedAnchors)
-            |> ResultME.combineList
+            |> Result.combine
+            |> Result.mapError handleErrors
 
     else
         groupedAnchors
             |> List.filter (\ls -> List.length ls > 1)
             |> DuplicatedAnchors
-            |> ResultME.error
+            |> handleErrors
+            |> Err
 
 
 {-| Generate fairly descriptive error messages
@@ -174,7 +175,7 @@ fold block =
         \allGeneratedAnchors ->
             block
                 |> Scaffolded.map (\{ validate } -> validate allGeneratedAnchors)
-                |> Scaffolded.foldResultME
+                |> Scaffolded.foldResults
     , words =
         block
             |> Scaffolded.map .words
@@ -315,7 +316,7 @@ validateLink link { validate, words, generatedAnchors } =
                 validate allGeneratedAnchors
 
             else
-                ResultME.error (InvalidAnchorLink link)
+                Err (InvalidAnchorLink link)
     }
 
 
