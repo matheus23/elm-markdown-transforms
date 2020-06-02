@@ -2,8 +2,8 @@ module Markdown.Scaffolded exposing
     ( Block(..)
     , map
     , parameterized, validating, withStaticHttpRequests
-    , foldHtml, foldFunction, foldWords, foldResults, foldStaticHttpRequests, foldPretty
-    , reduce
+    , reduceHtml, reduceWords, reducePretty, reduce
+    , foldFunction, foldResults, foldStaticHttpRequests
     , fromRenderer, toRenderer
     , bumpHeadings
     )
@@ -11,17 +11,17 @@ module Markdown.Scaffolded exposing
 {-|
 
 
-# Rendering Markdown with Scaffolds and Folds
+# Rendering Markdown with Scaffolds, Reducers and Folds
 
 (This is called recursion-schemes in other languages, but don't worry, you don't have to
-write recursive functions!)
+write recursive functions (this is the point of all of this ;) )!)
 
 This is module provides a more **complicated**, but also **more powerful and
 composable** way of rendering markdown than the built-in elm-markdown
 [`Renderer`](https://package.elm-lang.org/packages/dillonkearns/elm-markdown/latest/Markdown-Renderer).
 
 If you feel a little overwhelmed with this module at first, I recommend taking a look at
-the [What are folds?](#what-are-folds-) section.
+the [What are reducers?](#what-are-reducers-) section.
 
 
 # Main Datastructure
@@ -33,30 +33,30 @@ the [What are folds?](#what-are-folds-) section.
 
 # High-level Transformations
 
-These functions are not as composable as [fold building blocks](#fold-building-blocks),
+These functions are not as composable as [transformation building blocks](#transformation-building-blocks),
 but might suffice for your use case. Take a look at the other section if you find you need
 something better.
 
 @docs parameterized, validating, withStaticHttpRequests
 
 
-# Fold Building Blocks
+# Transformation Building Blocks
 
-@docs foldHtml, foldFunction, foldWords, foldResults, foldStaticHttpRequests, foldPretty
-@docs reduce
+@docs reduceHtml, reduceWords, reducePretty, reduce
+@docs foldFunction, foldResults, foldStaticHttpRequests
 
 
-### What are folds?
+### What are 'reducers'?
 
-Often, we're working with functions of the type `Block view -> view`, where `view` might
-be something like `Html Msg` or `String`, etc. or, generally, functions of structure
-`Block a -> b`.
+In this context of the library, we're often working with functions of the type
+`Block view -> view`, where `view` might be something like `Html Msg` or `String`, etc.
+or, generally, functions of structure `Block a -> b`.
 
-I refer to functions of that structure as 'folds'. (This is somewhat different to the
-'real' terminology, but I feel like they capture the nature of 'folding once' very well.)
+I refer to functions of that structure as 'reducers'. (This is somewhat different to the
+'real' terminology, but I feel like they capture the nature of 'reducing once' very well.)
 
-If you know `List.foldr` you already know an example for a fold!
-The folds in this module are no different, we just write them in different ways.
+If you know `List.foldr` you already know an example for a reducer (the first argument)!
+The reducers in this module are no different, we just write them in different ways.
 
 We can do the same thing we did for this library for lists:
 
@@ -64,17 +64,17 @@ We can do the same thing we did for this library for lists:
         = Empty
         | Cons elem a
 
-    foldEmpty = 0
+    reduceEmpty = 0
 
-    foldCons a b = a + b
+    reduceCons a b = a + b
 
     handler listElement =
         case listElement of
             Empty ->
-                foldEmpty
+                reduceEmpty
 
             Cons elem accumulated ->
-                foldCons elem accumulated
+                reduceCons elem accumulated
 
     foldl : (ListScaffold a b -> b) -> List a -> b
     foldl handle list =
@@ -82,16 +82,35 @@ We can do the same thing we did for this library for lists:
             [] -> handle Empty
             (x:xs) -> handle (Cons x xs)
 
-    foldl handler == List.foldl foldCons foldEmpty
+    foldl handler == List.foldl reduceCons reduceEmpty
 
-The last line illustrates how differnt ways of writing these folds relate: For
+The last line illustrates how different ways of writing these reducers relate: For
 `List.foldl` we simply provide the cases (empty or cons) as different arguments,
-for folds in this library, we create a custom type case for empty and cons.
+for reducers in this library, we create a custom type case for empty and cons.
 
 
-### Combining Folds
+### What are 'folds'?
 
-You can combine multiple 'folds' into one. There's no function for doing this, but a
+Some functions have similar, but not quite the type that a reducers has. For example:
+
+  - `Block (Request a) -> Request (Block a)`
+  - `Block (Maybe a) -> Maybe (Block a)`
+  - `Block (Result err a) -> Result err (Block a)`
+  - `Block (environment -> a) -> environment -> Block a`
+
+All of these examples have the structure `Block (F a) -> F (Block a)` for some `F`. You
+might have to squint your eyes at the last two of these examples. Especially the last one.
+Let me rewrite it with a type alias:
+
+    type alias Function a b =
+        a -> b
+
+    foldFunction : Block (Function env a) -> Function env (Block a)
+
+
+### Combining Reducers
+
+You can combine multiple 'reducers' into one. There's no function for doing this, but a
 pattern you might want to follow.
 
 Let's say you want to accumulate both all the words in your markdown and the `Html` you
@@ -102,15 +121,15 @@ want it to render to, then you can do this:
         , words : List String
         }
 
-    foldRendered : Block Rendered -> Rendered
-    foldRendered block =
-        { html = block |> map .html |> foldHtml
-        , words = block |> map .words |> foldWords
+    reduceRendered : Block Rendered -> Rendered
+    reduceRendered block =
+        { html = block |> map .html |> reduceHtml
+        , words = block |> map .words |> reduceWords
         }
 
 If you want to render to more things, just add another parameter to the record type and
 follow the pattern. It is even possible to let the rendered html to depend on the words
-inside itself (or maybe something else you're additionally folding to).
+inside itself (or maybe something else you're additionally reducing to).
 
 
 # Conversions
@@ -157,7 +176,7 @@ you'll notice a similarity to this custom type, except it's missing a type for '
 Defining this data structure has some advantages in composing multiple Renderers.
 
 It has a type parameter `children`, which is supposed to be filled with `String`,
-`Html msg` or similar. Take a look at some [folds](#fold-building-blocks) for examples of this.
+`Html msg` or similar. Take a look at some [reducers](#transformation-building-blocks) for examples of this.
 
 There are some neat tricks you can do with this data structure, for example, `Block Never`
 represents only non-nested blocks of markdown.
@@ -284,7 +303,7 @@ Examples for what the `environment` type variable can be:
 
 Usually, for the above usecases you would have to define a function of type
 
-    foldTemplate :
+    reduceTemplate :
         Block (TemplateInfo -> Html msg)
         -> (TemplateInfo -> Html msg)
 
@@ -344,8 +363,8 @@ easy to re-create: Its implementation is just 1 line of code.
 parameterized :
     (Block view -> environment -> view)
     -> (Block (environment -> view) -> (environment -> view))
-parameterized fold markdown env =
-    fold (map (\expectingEnv -> expectingEnv env) markdown) env
+parameterized reducer markdown env =
+    reducer (map (\expectingEnv -> expectingEnv env) markdown) env
 
 
 {-| This transform enables validating the content of your `Block` before
@@ -359,7 +378,7 @@ This function's most prominent usecases are linting markdown files, so for examp
   - Generate errors/warnings on typos or words not contained in a dictionary
   - Disallow `h1` (alternatively, consider bumping the heading level)
 
-But it might also be possible that your `view` type can't _always_ be folded from a
+But it might also be possible that your `view` type can't _always_ be reduced from a
 `Block view` to a `view`, so you need to generate an error in these cases.
 
 
@@ -373,8 +392,8 @@ is just 1 line of code.
 validating :
     (Block view -> Result error view)
     -> (Block (Result error view) -> Result error view)
-validating fold markdown =
-    markdown |> foldResults |> Result.andThen fold
+validating reducer markdown =
+    markdown |> foldResults |> Result.andThen reducer
 
 
 {-| This transform allows you to perform elm-pages' StaticHttp requests without having to
@@ -397,11 +416,11 @@ Its implementation is just 1 line of code.
 withStaticHttpRequests :
     (Block view -> StaticHttp.Request view)
     -> (Block (StaticHttp.Request view) -> StaticHttp.Request view)
-withStaticHttpRequests fold markdown =
-    markdown |> foldStaticHttpRequests |> StaticHttp.andThen fold
+withStaticHttpRequests reducer markdown =
+    markdown |> foldStaticHttpRequests |> StaticHttp.andThen reducer
 
 
-{-| This will fold a `Block` to `Html` similar to what the
+{-| This will reduce a `Block` to `Html` similar to what the
 [`defaultHtmlRenderer` in elm-markdown](https://package.elm-lang.org/packages/dillonkearns/elm-markdown/latest/Markdown-Renderer#defaultHtmlRenderer)
 does. That is, it renders similar to what the CommonMark spec expects.
 
@@ -411,8 +430,8 @@ id's, classes or events, you can use this.
 However, **the attributes parameter is ignored for `Text` nodes**.
 
 -}
-foldHtml : List (Html.Attribute msg) -> Block (Html msg) -> Html msg
-foldHtml attributes markdown =
+reduceHtml : List (Html.Attribute msg) -> Block (Html msg) -> Html msg
+reduceHtml attributes markdown =
     case markdown of
         Heading { level, children } ->
             case level of
@@ -619,7 +638,7 @@ like so:
             -- ^ result : Model -> Block (Html Msg)
             model
             -- ^ result : Block (Html Msg)
-            |> foldHtml
+            |> reduceHtml
 
     -- ^ result : Html Msg
 
@@ -643,8 +662,8 @@ this.
 This is useful if you need to e.g. create header slugs.
 
 -}
-foldWords : Block (List String) -> List String
-foldWords =
+reduceWords : Block (List String) -> List String
+reduceWords =
     let
         whitespace =
             Regex.fromStringWith { caseInsensitive = True, multiline = True } "\\s"
@@ -795,7 +814,7 @@ foldResults markdown =
 [`StaticHttp.Request`](https://package.elm-lang.org/packages/dillonkearns/elm-pages/latest/Pages-StaticHttp#Request)s
 over blocks.
 
-Using this, it is possible to write folds that produce views as a result of performing
+Using this, it is possible to write reducers that produce views as a result of performing
 static http requests.
 
 -}
@@ -913,9 +932,16 @@ foldStaticHttpRequests markdown =
                 |> StaticHttp.map TableCell
 
 
-{-| -}
-foldPretty : Block String -> String
-foldPretty block =
+{-| Convert a block of markdown back to markdown text.
+(See the 'Formatting Markdown' test in the test suite.)
+
+This just renders one particular style of markdown. Your use-case might need something
+completely different. I recommend taking a look at the source code and adapting it to
+your needs.
+
+-}
+reducePretty : Block String -> String
+reducePretty block =
     let
         escape toEscape =
             String.replace toEscape ("\\" ++ toEscape)

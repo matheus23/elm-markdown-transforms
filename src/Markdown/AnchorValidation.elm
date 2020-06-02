@@ -145,7 +145,7 @@ fold block =
     , words =
         block
             |> Scaffolded.map .words
-            |> Scaffolded.foldWords
+            |> Scaffolded.reduceWords
     , generatedAnchors =
         block
             |> Scaffolded.map .generatedAnchors

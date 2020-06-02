@@ -69,7 +69,7 @@ prettyprint markdown =
             (Markdown.render
                 (Scaffolded.toRenderer
                     { renderHtml = Markdown.Html.oneOf []
-                    , renderMarkdown = Scaffolded.foldPretty
+                    , renderMarkdown = Scaffolded.reducePretty
                     }
                 )
             )
