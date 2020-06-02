@@ -3,10 +3,9 @@ module Markdown.Scaffolded exposing
     , map, indexedMap
     , parameterized, validating, withStaticHttpRequests
     , reduceHtml, reduceWords, reducePretty, reduce
-    , foldFunction, foldResults, foldStaticHttpRequests
+    , foldFunction, foldResults, foldStaticHttpRequests, foldIndexed
     , fromRenderer, toRenderer
     , bumpHeadings
-    , foldIndexed
     )
 
 {-|
@@ -44,7 +43,7 @@ something better.
 # Transformation Building Blocks
 
 @docs reduceHtml, reduceWords, reducePretty, reduce
-@docs foldFunction, foldResults, foldStaticHttpRequests
+@docs foldFunction, foldResults, foldStaticHttpRequests, foldIndexed
 
 
 ### What are 'reducers'?
