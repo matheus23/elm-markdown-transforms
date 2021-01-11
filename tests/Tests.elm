@@ -208,12 +208,7 @@ prettyprintTables style markdown =
                     }
                 )
             )
-        |> Result.map
-            (List.map ((|>) 0)
-                >> Tables.fold
-                >> Tables.resolve
-                >> String.join "\n\n"
-            )
+        |> Result.map Tables.finishReduction
 
 
 

@@ -49,7 +49,7 @@ working with it exclusively. That is, `resolve`, `fold`, the various `map`s and
 `validateLink`.
 
 If you're curious what this type is about:
-Imagine anchor link checking to work in two phases:
+Anchor link checking works in two phases:
 
 1.  The markdown gets reduced to the list of words and all used anchors at the same time
     (the `words` and `generatedAnchors` fields).

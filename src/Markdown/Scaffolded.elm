@@ -1063,6 +1063,13 @@ This just renders one particular style of markdown. Your use-case might need som
 completely different. I recommend taking a look at the source code and adapting it to
 your needs.
 
+Note: **This function doesn't support GFM tables**.
+The function `Markdown.PrettyTables.reducePrettyTable` extends this function with table
+pretty-printing.
+Table pretty-printing is complicated, even when ignoring column sizes. The type
+`Block String -> String` is just "not powerful" enough to render a table to a string in
+such a way that it is syntactically valid again.
+
 -}
 reducePretty : Block String -> String
 reducePretty block =
@@ -1185,69 +1192,24 @@ reducePretty block =
         ThematicBreak ->
             "---\n"
 
+        -- For table pretty-printing support, take a look at the Markdown.PrettyTables module
         Table children ->
-            "<table>\n"
-                ++ String.join "\n" children
-                ++ "\n</table>"
+            ""
 
         TableHeader children ->
-            "<header>\n"
-                ++ String.join "\n" children
-                ++ "\n</header>"
+            ""
 
         TableBody children ->
-            "<body>\n"
-                ++ String.join "\n" children
-                ++ "\n</body>"
+            ""
 
         TableRow children ->
-            "<row>\n"
-                ++ String.join "\n" children
-                ++ "\n</row>"
+            ""
 
         TableCell align children ->
-            let
-                alignment =
-                    case align of
-                        Just Block.AlignLeft ->
-                            " left"
-
-                        Just Block.AlignCenter ->
-                            " center"
-
-                        Just Block.AlignRight ->
-                            " right"
-
-                        Nothing ->
-                            ""
-            in
-            "<cell"
-                ++ alignment
-                ++ ">\n"
-                ++ String.join "\n" children
-                ++ "\n</cell>"
+            ""
 
         TableHeaderCell align children ->
-            let
-                alignment =
-                    case align of
-                        Just Block.AlignLeft ->
-                            " left"
-
-                        Just Block.AlignCenter ->
-                            " center"
-
-                        Just Block.AlignRight ->
-                            " right"
-
-                        Nothing ->
-                            ""
-            in
-            "<headerCell"
-                ++ alignment
-                ++ ">\n"
-                ++ String.join "\n" children
-                ++ "\n</headerCell>"
+            ""
 
 
 {-| Reduces a block down to anything that can be accumulated.

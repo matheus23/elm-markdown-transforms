@@ -60,12 +60,7 @@ view model =
               ]
             , model.parsed
                 |> Result.andThen (Markdown.render customHtmlRenderer)
-                |> Result.map
-                    (List.map ((|>) 0)
-                        >> Tables.fold
-                        >> Tables.resolve
-                        >> String.join "\n\n"
-                    )
+                |> Result.map Tables.finishReduction
                 |> Result.unpack viewError viewMarkdown
             ]
     }
