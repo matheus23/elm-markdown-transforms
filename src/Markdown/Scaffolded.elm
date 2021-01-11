@@ -201,7 +201,7 @@ type Block children
     | TableHeader (List children)
     | TableBody (List children)
     | TableRow (List children)
-    | TableCell (List children)
+    | TableCell (Maybe Block.Alignment) (List children)
     | TableHeaderCell (Maybe Block.Alignment) (List children)
 
 
@@ -296,8 +296,8 @@ map f markdown =
         TableRow children ->
             TableRow (List.map f children)
 
-        TableCell children ->
-            TableCell (List.map f children)
+        TableCell alignment children ->
+            TableCell alignment (List.map f children)
 
         TableHeaderCell alignment children ->
             TableHeaderCell alignment (List.map f children)
@@ -395,8 +395,8 @@ indexedMap f markdown =
         TableRow children ->
             TableRow (List.indexedMap (\index -> f [ index ]) children)
 
-        TableCell children ->
-            TableCell (List.indexedMap (\index -> f [ index ]) children)
+        TableCell alignment children ->
+            TableCell alignment (List.indexedMap (\index -> f [ index ]) children)
 
         TableHeaderCell alignment children ->
             TableHeaderCell alignment (List.indexedMap (\index -> f [ index ]) children)
@@ -544,6 +544,21 @@ However, **the attributes parameter is ignored for `Text` nodes**.
 -}
 reduceHtml : List (Html.Attribute msg) -> Block (Html msg) -> Html msg
 reduceHtml attributes markdown =
+    let
+        attrsFromAlignment maybeAlignment =
+            case maybeAlignment of
+                Just Block.AlignLeft ->
+                    Attr.align "left" :: attributes
+
+                Just Block.AlignCenter ->
+                    Attr.align "center" :: attributes
+
+                Just Block.AlignRight ->
+                    Attr.align "right" :: attributes
+
+                Nothing ->
+                    attributes
+    in
     case markdown of
         Heading { level, children } ->
             case level of
@@ -691,25 +706,10 @@ reduceHtml attributes markdown =
             Html.tr attributes children
 
         TableHeaderCell maybeAlignment children ->
-            let
-                attrs =
-                    case maybeAlignment of
-                        Just Block.AlignLeft ->
-                            Attr.align "left" :: attributes
+            Html.th (attrsFromAlignment maybeAlignment) children
 
-                        Just Block.AlignCenter ->
-                            Attr.align "center" :: attributes
-
-                        Just Block.AlignRight ->
-                            Attr.align "right" :: attributes
-
-                        Nothing ->
-                            attributes
-            in
-            Html.th attrs children
-
-        TableCell children ->
-            Html.td attributes children
+        TableCell maybeAlignment children ->
+            Html.td (attrsFromAlignment maybeAlignment) children
 
 
 {-| Transform a block that contains functions into a function that produces blocks.
@@ -928,10 +928,10 @@ foldResults markdown =
                 |> Result.combine
                 |> Result.map (TableHeaderCell maybeAlignment)
 
-        TableCell children ->
+        TableCell maybeAlignment children ->
             children
                 |> Result.combine
-                |> Result.map TableCell
+                |> Result.map (TableCell maybeAlignment)
 
 
 {-| Accumulate elm-page's
@@ -1050,10 +1050,10 @@ foldStaticHttpRequests markdown =
                 |> allStaticHttp
                 |> StaticHttp.map (TableHeaderCell maybeAlignment)
 
-        TableCell children ->
+        TableCell maybeAlignment children ->
             children
                 |> allStaticHttp
-                |> StaticHttp.map TableCell
+                |> StaticHttp.map (TableCell maybeAlignment)
 
 
 {-| Convert a block of markdown back to markdown text.
@@ -1198,7 +1198,7 @@ reducePretty block =
         TableRow _ ->
             ""
 
-        TableCell _ ->
+        TableCell _ _ ->
             ""
 
         TableHeaderCell _ _ ->
@@ -1327,7 +1327,7 @@ reduce { extract, accumulate } block =
             accumulate children
                 |> append (extract block)
 
-        TableCell children ->
+        TableCell _ children ->
             accumulate children
                 |> append (extract block)
 
@@ -1400,8 +1400,8 @@ fromRenderer renderer markdown =
         TableHeaderCell maybeAlignment children ->
             renderer.tableHeaderCell maybeAlignment children
 
-        TableCell children ->
-            renderer.tableCell children
+        TableCell maybeAlignment children ->
+            renderer.tableCell maybeAlignment children
 
 
 {-| Convert a function that works with `Block` to a `Renderer` for use with
@@ -1445,7 +1445,7 @@ toRenderer { renderMarkdown, renderHtml } =
     , tableBody = TableBody >> renderMarkdown
     , tableRow = TableRow >> renderMarkdown
     , tableHeaderCell = \maybeAlignment -> TableHeaderCell maybeAlignment >> renderMarkdown
-    , tableCell = TableCell >> renderMarkdown
+    , tableCell = \maybeAlignment -> TableCell maybeAlignment >> renderMarkdown
     }
 
 
