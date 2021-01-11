@@ -28,17 +28,20 @@ type Msg
 
 exampleMarkdown : String
 exampleMarkdown =
-    """# Tables
+    """# Pretty-printing Tables
+Name | Year of birth
+--|-:
+Tom Hanks | 1956
+Philipp | 1997
+Jesus | -4
+Caesar | -100
 
-| foo | bar |
-| --- | --- |
-| baz | bim |
-
-(Yes, this is valid markdown)
-
-| abc | defghi |
-:-: | -----------:
-bar | baz
+Appliance | Cost | Own
+:-:|-:|:-
+Dishwasher | 500€ | Yes
+Toaster | 40€ | No
+Refrigerator | 600€ | Yes
+Washing Machine | 1200€ | Yes
 """
 
 
