@@ -1,4 +1,4 @@
-module FormatMarkdown exposing (main)
+module FormatTables exposing (main)
 
 import BeautifulExample
 import Browser exposing (Document)
@@ -10,6 +10,7 @@ import List.Extra as List
 import Markdown.Block as Markdown
 import Markdown.Html
 import Markdown.Parser as Markdown
+import Markdown.PrettyTables as Tables
 import Markdown.Renderer as Markdown
 import Markdown.Scaffolded as Scaffolded
 import Result.Extra as Result
@@ -27,58 +28,23 @@ type Msg
 
 exampleMarkdown : String
 exampleMarkdown =
-    """# Format _beautiful_ Markdown
+    """# Tables
 
-> Markdown is only fine
-> When *pretty printed*
-> It has to be **BEAUTIFUL** I SAID.
-## Links
-Let's try [a `link`](https://example.com)
+| foo | bar |
+| --- | --- |
+| baz | bim |
 
-What about images? ![alt text](https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 1")
+(Yes, this is valid markdown)
 
-
-
-## Lists
-
-Markdown formatting is:
-* [ ] Stupid
-* [X] Okay-ish
-* [ ] Works
-- Let's not do checkboxes.
-
-1. Don't use this project
-1. What are you doing?
-1. Ok. Please go now.
-
----------
-
-0. Write library
-1. Publish
-2. ???
-3. Profit!
-
-## Code blocks
-
-```elm
-viewMarkdown : String -> List (Html Msg)
-viewMarkdown markdown =
-    [ Html.h2 [] [ Html.text "Prettyprinted:" ]
-    , Html.hr [] []
-    , Html.pre [ Attr.style "word-wrap" "pre-wrap" ] [ Html.text markdown ]
-    ]
-```
-
-```
-Please use more beautiful
-Code blocks!
-```
+| abc | defghi |
+:-: | -----------:
+bar | baz
 """
 
 
 view : Model -> Document Msg
 view model =
-    { title = "Format Markdown"
+    { title = "Format Markdown Tables"
     , body =
         List.concat
             [ [ Html.h2 [] [ Html.text "This Markdown Document:" ]
@@ -94,7 +60,12 @@ view model =
               ]
             , model.parsed
                 |> Result.andThen (Markdown.render customHtmlRenderer)
-                |> Result.map (String.join "\n\n")
+                |> Result.map
+                    (List.map ((|>) 0)
+                        >> Tables.fold
+                        >> Tables.resolve
+                        >> String.join "\n\n"
+                    )
                 |> Result.unpack viewError viewMarkdown
             ]
     }
@@ -119,11 +90,11 @@ viewError errorMessage =
 -- FORMATTING
 
 
-customHtmlRenderer : Markdown.Renderer String
+customHtmlRenderer : Markdown.Renderer (Int -> Tables.TableInfo String)
 customHtmlRenderer =
     Scaffolded.toRenderer
         { renderHtml = Markdown.Html.oneOf []
-        , renderMarkdown = Scaffolded.reducePretty
+        , renderMarkdown = Tables.reducePrettyTable Tables.defaultStyle
         }
 
 

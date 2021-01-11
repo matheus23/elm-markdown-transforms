@@ -1163,7 +1163,7 @@ reducePretty block =
                         ++ langName
                         ++ "\n"
                         ++ body
-                        ++ "\n```"
+                        ++ "```"
 
                 Nothing ->
                     let
@@ -1183,26 +1183,71 @@ reducePretty block =
             "\n\n"
 
         ThematicBreak ->
-            "--------------------\n"
+            "---\n"
 
-        -- Currently, elm-markdown doesn't support tables (they're not parsed)
-        Table _ ->
-            ""
+        Table children ->
+            "<table>\n"
+                ++ String.join "\n" children
+                ++ "\n</table>"
 
-        TableHeader _ ->
-            ""
+        TableHeader children ->
+            "<header>\n"
+                ++ String.join "\n" children
+                ++ "\n</header>"
 
-        TableBody _ ->
-            ""
+        TableBody children ->
+            "<body>\n"
+                ++ String.join "\n" children
+                ++ "\n</body>"
 
-        TableRow _ ->
-            ""
+        TableRow children ->
+            "<row>\n"
+                ++ String.join "\n" children
+                ++ "\n</row>"
 
-        TableCell _ _ ->
-            ""
+        TableCell align children ->
+            let
+                alignment =
+                    case align of
+                        Just Block.AlignLeft ->
+                            " left"
 
-        TableHeaderCell _ _ ->
-            ""
+                        Just Block.AlignCenter ->
+                            " center"
+
+                        Just Block.AlignRight ->
+                            " right"
+
+                        Nothing ->
+                            ""
+            in
+            "<cell"
+                ++ alignment
+                ++ ">\n"
+                ++ String.join "\n" children
+                ++ "\n</cell>"
+
+        TableHeaderCell align children ->
+            let
+                alignment =
+                    case align of
+                        Just Block.AlignLeft ->
+                            " left"
+
+                        Just Block.AlignCenter ->
+                            " center"
+
+                        Just Block.AlignRight ->
+                            " right"
+
+                        Nothing ->
+                            ""
+            in
+            "<headerCell"
+                ++ alignment
+                ++ ">\n"
+                ++ String.join "\n" children
+                ++ "\n</headerCell>"
 
 
 {-| Reduces a block down to anything that can be accumulated.
