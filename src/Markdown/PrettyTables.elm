@@ -337,8 +337,16 @@ reducePrettyTable style block column =
                                     |> grabFrom 0
                                     |> style.renderDelimiter
                         in
-                        rendereds
-                            |> String.join ("\n" ++ headingDelimiter ++ "\n")
+                        case rendereds of
+                            [ headerRow ] ->
+                                headerRow
+                                    ++ "\n"
+                                    ++ headingDelimiter
+                                    ++ "\n"
+
+                            _ ->
+                                rendereds
+                                    |> String.join ("\n" ++ headingDelimiter ++ "\n")
                    )
                 |> pure
 

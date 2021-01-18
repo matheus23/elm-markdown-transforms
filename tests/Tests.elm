@@ -284,6 +284,9 @@ Toaster | 40€ | No
 Refrigerator | 600€ | Yes
 Washing Machine | 1200€ | Yes
 
+Table | Without Rows
+--|--
+
 """
 
 
