@@ -342,7 +342,6 @@ reducePrettyTable style block column =
                                 headerRow
                                     ++ "\n"
                                     ++ headingDelimiter
-                                    ++ "\n"
 
                             _ ->
                                 rendereds
