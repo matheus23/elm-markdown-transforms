@@ -284,8 +284,12 @@ Toaster | 40€ | No
 Refrigerator | 600€ | Yes
 Washing Machine | 1200€ | Yes
 
+This is some text to ensure the right amount of newlines
+
 Table | Without Rows
 --|--
+
+More text to ensure we generate the right spacing between markdown blocks
 
 """
 
