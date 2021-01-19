@@ -31,8 +31,43 @@ suite =
             , test "idempotency" (testIdempotency prettyprint exampleMarkdown)
             ]
         , describe "PrettyTables"
-            [ -- Round-Trips
-              test "round-trip (small, compact)"
+            [ -- Examples
+              test "basic example"
+                (testConcrete (prettyprintTables Tables.defaultStyle)
+                    { input =
+                        [ "Person | Age"
+                        , "--|-:"
+                        , "Someone I used to know | No idea"
+                        , "Me | 23"
+                        ]
+                    , expect =
+                        [ "| Person                 |     Age |"
+                        , "|------------------------|--------:|"
+                        , "| Someone I used to know | No idea |"
+                        , "| Me                     |      23 |"
+                        ]
+                    }
+                )
+            , test "no additional newlines (issue #4)"
+                (testConcrete (prettyprintTables Tables.compactStyle)
+                    { input =
+                        [ "one | two"
+                        , "--- | ---"
+                        , ""
+                        , ""
+                        , "para after table"
+                        ]
+                    , expect =
+                        [ "one | two"
+                        , "--- | ---"
+                        , ""
+                        , "para after table"
+                        ]
+                    }
+                )
+
+            -- Round-Trips
+            , test "round-trip (small, compact)"
                 (testRoundTrip
                     (prettyprintTables Tables.compactStyle)
                     exampleTables
@@ -126,6 +161,15 @@ suite =
                         |> expectOk
             ]
         ]
+
+
+testConcrete : (String -> Result String String) -> { input : List String, expect : List String } -> () -> Expectation
+testConcrete prettyprinter { input, expect } () =
+    input
+        |> String.join "\n"
+        |> prettyprinter
+        |> Result.map (Expect.equal (String.join "\n" expect))
+        |> expectOk
 
 
 testRoundTrip : (String -> Result String String) -> String -> () -> Expectation
