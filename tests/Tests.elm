@@ -280,11 +280,11 @@ Markdown formatting is:
 * [X] Okay-ish
 * [ ] Works
 
-- Let's not do checkboxes.
-
 1. Don't use this project
 1. What are you doing?
 1. Ok. Please go now.
+
+- Let's not do checkboxes.
 
 ---------
 
