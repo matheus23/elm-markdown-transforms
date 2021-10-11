@@ -1,7 +1,7 @@
 module Markdown.Scaffolded exposing
     ( Block(..)
     , map, indexedMap
-    , parameterized, validating, withStaticHttpRequests
+    , parameterized, validating, withDataSource
     , reduceHtml, reduceWords, reducePretty, reduce
     , foldFunction, foldResults, foldStaticHttpRequests, foldIndexed
     , fromRenderer, toRenderer
@@ -37,7 +37,7 @@ These functions are not as composable as [transformation building blocks](#trans
 but might suffice for your use case. Take a look at the other section if you find you need
 something better.
 
-@docs parameterized, validating, withStaticHttpRequests
+@docs parameterized, validating, withDataSource
 
 
 # Transformation Building Blocks
@@ -148,12 +148,12 @@ I mean to aggregate utilites for transforming Blocks in this section.
 
 -}
 
+import DataSource exposing (DataSource)
 import Html exposing (Html)
 import Html.Attributes as Attr
 import Markdown.Block as Block
 import Markdown.Html
 import Markdown.Renderer exposing (Renderer)
-import Pages.StaticHttp as StaticHttp
 import Regex
 import Result.Extra as Result
 
@@ -190,6 +190,7 @@ type Block children
     | CodeSpan String
     | Strong (List children)
     | Emphasis (List children)
+    | Strikethrough (List children)
     | Link { title : Maybe String, destination : String, children : List children }
     | Image { alt : String, src : String, title : Maybe String }
     | UnorderedList { items : List (Block.ListItem children) }
@@ -255,6 +256,9 @@ map f markdown =
 
         Emphasis children ->
             Emphasis (List.map f children)
+
+        Strikethrough children ->
+            Strikethrough (List.map f children)
 
         Link { title, destination, children } ->
             Link { title = title, destination = destination, children = List.map f children }
@@ -354,6 +358,9 @@ indexedMap f markdown =
 
         Emphasis children ->
             Emphasis (List.indexedMap (\index -> f [ index ]) children)
+
+        Strikethrough children ->
+            Strikethrough (List.indexedMap (\index -> f [ index ]) children)
 
         Link { title, destination, children } ->
             Link { title = title, destination = destination, children = List.indexedMap (\index -> f [ index ]) children }
@@ -508,14 +515,14 @@ validating reducer markdown =
     markdown |> foldResults |> Result.andThen reducer
 
 
-{-| This transform allows you to perform elm-pages' StaticHttp requests without having to
+{-| This transform allows you to perform elm-pages' DataSource requests without having to
 think about how to thread these through your renderer.
 
 Some applications that can be realized like this:
 
   - Verifying that all links in your markdown do resolve at page build-time
     (Note: This currently needs some change in elm-pages, so it's not possible _yet_)
-  - Giving custom elm-markdown HTML elements the ability to perform StaticHttp requests
+  - Giving custom elm-markdown HTML elements the ability to perform DataSource requests
 
 
 ### Missing Functionality
@@ -525,11 +532,11 @@ The `wihtStaticHttpRequests` definition basically just documents a common patter
 Its implementation is just 1 line of code.
 
 -}
-withStaticHttpRequests :
-    (Block view -> StaticHttp.Request view)
-    -> (Block (StaticHttp.Request view) -> StaticHttp.Request view)
-withStaticHttpRequests reducer markdown =
-    markdown |> foldStaticHttpRequests |> StaticHttp.andThen reducer
+withDataSource :
+    (Block view -> DataSource view)
+    -> (Block (DataSource view) -> DataSource view)
+withDataSource reducer markdown =
+    markdown |> foldStaticHttpRequests |> DataSource.andThen reducer
 
 
 {-| This will reduce a `Block` to `Html` similar to what the
@@ -597,6 +604,9 @@ reduceHtml attributes markdown =
 
         Emphasis children ->
             Html.em attributes children
+
+        Strikethrough children ->
+            Html.span (Attr.style "text-decoration" "line-through" :: attributes) children
 
         Link link ->
             case link.title of
@@ -859,6 +869,11 @@ foldResults markdown =
                 |> Result.combine
                 |> Result.map Emphasis
 
+        Strikethrough children ->
+            children
+                |> Result.combine
+                |> Result.map Strikethrough
+
         Link { title, destination, children } ->
             children
                 |> Result.combine
@@ -935,20 +950,20 @@ foldResults markdown =
 
 
 {-| Accumulate elm-page's
-[`StaticHttp.Request`](https://package.elm-lang.org/packages/dillonkearns/elm-pages/latest/Pages-StaticHttp#Request)s
+[`DataSource`](https://package.elm-lang.org/packages/dillonkearns/elm-pages/latest/Pages-DataSource#Request)s
 over blocks.
 
 Using this, it is possible to write reducers that produce views as a result of performing
 static http requests.
 
 -}
-foldStaticHttpRequests : Block (StaticHttp.Request view) -> StaticHttp.Request (Block view)
+foldStaticHttpRequests : Block (DataSource view) -> DataSource (Block view)
 foldStaticHttpRequests markdown =
     case markdown of
         Heading { level, rawText, children } ->
             children
                 |> allStaticHttp
-                |> StaticHttp.map
+                |> DataSource.map
                     (\chdr ->
                         Heading { level = level, rawText = rawText, children = chdr }
                     )
@@ -956,42 +971,47 @@ foldStaticHttpRequests markdown =
         Paragraph children ->
             children
                 |> allStaticHttp
-                |> StaticHttp.map Paragraph
+                |> DataSource.map Paragraph
 
         BlockQuote children ->
             children
                 |> allStaticHttp
-                |> StaticHttp.map BlockQuote
+                |> DataSource.map BlockQuote
 
         Text content ->
             Text content
-                |> StaticHttp.succeed
+                |> DataSource.succeed
 
         CodeSpan content ->
             CodeSpan content
-                |> StaticHttp.succeed
+                |> DataSource.succeed
 
         Strong children ->
             children
                 |> allStaticHttp
-                |> StaticHttp.map Strong
+                |> DataSource.map Strong
 
         Emphasis children ->
             children
                 |> allStaticHttp
-                |> StaticHttp.map Emphasis
+                |> DataSource.map Emphasis
+
+        Strikethrough children ->
+            children
+                |> allStaticHttp
+                |> DataSource.map Strikethrough
 
         Link { title, destination, children } ->
             children
                 |> allStaticHttp
-                |> StaticHttp.map
+                |> DataSource.map
                     (\chdr ->
                         Link { title = title, destination = destination, children = chdr }
                     )
 
         Image imageInfo ->
             Image imageInfo
-                |> StaticHttp.succeed
+                |> DataSource.succeed
 
         UnorderedList { items } ->
             items
@@ -999,61 +1019,61 @@ foldStaticHttpRequests markdown =
                     (\(Block.ListItem task children) ->
                         children
                             |> allStaticHttp
-                            |> StaticHttp.map (Block.ListItem task)
+                            |> DataSource.map (Block.ListItem task)
                     )
                 |> allStaticHttp
-                |> StaticHttp.map (\itms -> UnorderedList { items = itms })
+                |> DataSource.map (\itms -> UnorderedList { items = itms })
 
         OrderedList { startingIndex, items } ->
             items
                 |> List.map allStaticHttp
                 |> allStaticHttp
-                |> StaticHttp.map
+                |> DataSource.map
                     (\itms ->
                         OrderedList { startingIndex = startingIndex, items = itms }
                     )
 
         CodeBlock codeBlockInfo ->
             CodeBlock codeBlockInfo
-                |> StaticHttp.succeed
+                |> DataSource.succeed
 
         HardLineBreak ->
             HardLineBreak
-                |> StaticHttp.succeed
+                |> DataSource.succeed
 
         ThematicBreak ->
             ThematicBreak
-                |> StaticHttp.succeed
+                |> DataSource.succeed
 
         Table children ->
             children
                 |> allStaticHttp
-                |> StaticHttp.map Table
+                |> DataSource.map Table
 
         TableHeader children ->
             children
                 |> allStaticHttp
-                |> StaticHttp.map TableHeader
+                |> DataSource.map TableHeader
 
         TableBody children ->
             children
                 |> allStaticHttp
-                |> StaticHttp.map TableBody
+                |> DataSource.map TableBody
 
         TableRow children ->
             children
                 |> allStaticHttp
-                |> StaticHttp.map TableRow
+                |> DataSource.map TableRow
 
         TableHeaderCell maybeAlignment children ->
             children
                 |> allStaticHttp
-                |> StaticHttp.map (TableHeaderCell maybeAlignment)
+                |> DataSource.map (TableHeaderCell maybeAlignment)
 
         TableCell maybeAlignment children ->
             children
                 |> allStaticHttp
-                |> StaticHttp.map (TableCell maybeAlignment)
+                |> DataSource.map (TableCell maybeAlignment)
 
 
 {-| Convert a block of markdown back to markdown text.
@@ -1119,6 +1139,9 @@ reducePretty block =
 
         Emphasis children ->
             "_" ++ escape "_" (String.concat children) ++ "_"
+
+        Strikethrough children ->
+            "~" ++ escape "~" (String.concat children) ++ "~"
 
         CodeSpan content ->
             "`" ++ content ++ "`"
@@ -1285,6 +1308,10 @@ reduce { extract, accumulate } block =
             accumulate children
                 |> append (extract block)
 
+        Strikethrough children ->
+            accumulate children
+                |> append (extract block)
+
         Link link ->
             accumulate link.children
                 |> append (extract block)
@@ -1371,6 +1398,9 @@ fromRenderer renderer markdown =
         Emphasis children ->
             renderer.emphasis children
 
+        Strikethrough children ->
+            renderer.strikethrough children
+
         Link { title, destination, children } ->
             renderer.link { title = title, destination = destination } children
 
@@ -1431,6 +1461,7 @@ toRenderer { renderMarkdown, renderHtml } =
     , codeSpan = CodeSpan >> renderMarkdown
     , strong = Strong >> renderMarkdown
     , emphasis = Emphasis >> renderMarkdown
+    , strikethrough = Emphasis >> renderMarkdown
     , hardLineBreak = HardLineBreak |> renderMarkdown
     , link =
         \{ title, destination } children ->
@@ -1529,9 +1560,9 @@ bumpHeadings by markdown =
 -- LOCAL DEFINITIONS
 
 
-allStaticHttp : List (StaticHttp.Request a) -> StaticHttp.Request (List a)
+allStaticHttp : List (DataSource a) -> DataSource (List a)
 allStaticHttp =
-    List.foldl (StaticHttp.map2 (::)) (StaticHttp.succeed [])
+    List.foldr (DataSource.map2 (::)) (DataSource.succeed [])
 
 
 bumpHeadingLevel : Block.HeadingLevel -> Block.HeadingLevel
